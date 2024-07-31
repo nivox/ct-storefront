@@ -9,6 +9,7 @@
     "bootstrap": "^5.3.3",
     "react": "^18.3.1",
     "react-bootstrap": "^2.10.4",
+    "react-cookie": "^4.0.3",
     "react-dom": "^18.3.1",
     "react-scripts": "5.0.1",
     "web-vitals": "^2.1.4"
@@ -23,7 +24,16 @@
     "extends": [
       "react-app",
       "react-app/jest"
-    ]
+    ],
+    "rules": {
+      "sort-imports": ["error", {
+        "ignoreCase": false,
+        "ignoreDeclarationSort": false,
+        "ignoreMemberSort": false,
+        "memberSyntaxSortOrder": ["none", "all", "multiple", "single"],
+        "allowSeparatedGroups": true
+      }]
+    }
   },
   "browserslist": {
     "production": [

@@ -52,16 +52,24 @@ export class ProductTypeAttributes {
         }
       });
     });
-    
+
     console.log(`Loaded ${productTypes.length} product types with ${Object.keys(this.attributeMap).length} searchable attributes.`)
   }
 
   getAttributes(productTypeId) {
-    return this.productTypeMap[productTypeId] || [];
+    return this.productTypeMap[productTypeId].filter(a => !a.ignored) || [];
   };
 
   getAttribute(attributeName) {
     return this.attributeMap[attributeName];
+  }
+
+  getAllAttributes() {
+    return Object.values(this.attributeMap);
+  }
+
+  setIgnoreAttribute(attributeName, ignored) {
+    this.attributeMap[attributeName].ignored = ignored;
   }
 }
 

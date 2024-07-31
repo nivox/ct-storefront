@@ -108,8 +108,9 @@ class Ct {
     });
     console.log(`Response status: ${response.status}`);
     if (!response.ok) {
-      console.log(`Response body: ${await response.text()}`);
-      throw new Error(`Response status: ${response.status}`);
+      const body = await response.text();
+      console.log(`Response body: ${body}`);
+      throw new Error(`Error performing request: status=${response.status}, body=${body}`);
     }
 
     return response.json();

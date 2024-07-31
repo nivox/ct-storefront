@@ -1,5 +1,3 @@
-import Container from 'react-bootstrap/Container';
-import Row from 'react-bootstrap/Row';
 import Col from 'react-bootstrap/Col';
 import Form from 'react-bootstrap/Form';
 import Stack from 'react-bootstrap/Stack';
@@ -27,7 +25,7 @@ function FacetEntry({facetName, facetLabel, facetOptions, facetSelection, setFac
     <Form.Group>
       <Form.Label>{facetLabel}</Form.Label>
       <Col>
-        <Form.Select multiple onChange={handleSelect}> {options} </Form.Select>
+        <Form.Select key={facetName} multiple onChange={handleSelect}> {options} </Form.Select>
       </Col>
     </Form.Group>
   )
@@ -36,7 +34,7 @@ function FacetEntry({facetName, facetLabel, facetOptions, facetSelection, setFac
 
 function FacetsPane({facets, facetsSelection, productTypeAttributes, lang, setFacetSelection}) {
   const facetEntries = Object.entries(facets)
-    .filter(([facetName, facetOptions]) => Object.keys(facetOptions).length > 0)
+    .filter(([_, facetOptions]) => Object.keys(facetOptions).length > 0)
     .map(([facetName, facetOptions]) => {
       let facetLabel = productTypeAttributes.getAttribute(facetName).label[lang];
       let selection = (facetsSelection && facetsSelection[facetName]) || [];
