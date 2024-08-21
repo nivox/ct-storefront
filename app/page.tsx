@@ -1,5 +1,10 @@
+'use client';
+
 import Image from "next/image";
 import App from "./App";
+import { useState } from "react";
+import { ProjectContext, ProjectDetails } from "./ProjectContext";
+import Login from "./Login";
 
 const defaultPageContent = <main className="flex min-h-screen flex-col items-center justify-between p-24">
 <div className="z-10 w-full max-w-5xl items-center justify-between font-mono text-sm lg:flex">
@@ -110,5 +115,13 @@ const defaultPageContent = <main className="flex min-h-screen flex-col items-cen
 </main>
 
 export default function Home() {
-  return <App />;
+  const [projectDetails, setProjectDetails] = useState<ProjectDetails | null>(null);
+
+  return (
+    <ProjectContext.Provider value={projectDetails}>
+          <div className="app">
+            {projectDetails? <App /> : <Login setProjectDetails={setProjectDetails} />}
+          </div>
+    </ProjectContext.Provider>
+  )
 }
