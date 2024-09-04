@@ -3,7 +3,7 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import { ChangeEvent, useCallback, useContext, useEffect, useState } from 'react';
 import { useCookies } from 'react-cookie';
 
-import { Alert, Button, Col, Container, Form, Modal, Row, Stack } from 'react-bootstrap';
+import { Alert, Button, Col, Container, Form, Modal, Row, Spinner, Stack } from 'react-bootstrap';
 
 import { CategoryTree, ProductTypeAttributes } from './utils';
 import CategoryBar from './CategoryBar';
@@ -11,6 +11,7 @@ import FacetsPane from './FacetsPane';
 import ProductsPane from './ProductsPane';
 import SearchBar from './SearchBar';
 import { ProjectContext, ProjectDetails } from './ProjectContext';
+import { ProductPagedSearchResponse } from '@commercetools/platform-sdk';
 
 function App() {
   const ctx = useContext(ProjectContext);
@@ -24,13 +25,14 @@ function App() {
   const [searchValue, setSearchValue] = useState("");
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [facets, setFacets] = useState({});
-  const [products, setProducts] = useState([]);
+  const [searchResponse, setSearchResponse] = useState<ProductPagedSearchResponse | null>(null);
   const [page, setPage] = useState(1);
-  const [totalProducts, setTotalProducts] = useState(0);
   const [facetsSelection, setFacetsSelection] = useState<Record<string, string[]> | null>(null);
 
   const [showFacetConfig, setShowFacetConfig] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const currentLang = selectedLanguage || "en";
 
   async function triggerSearch() {
     if (!ctx) {
@@ -45,12 +47,11 @@ function App() {
       }
 
       let facets = await ctx.ct.productSearchFacets(searchValue, selectedCategoryId, selectedLanguage, productTypeAttributes, facetsSelection);
-      let products = await ctx.ct.productSearch(searchValue, selectedCategoryId, selectedLanguage, productTypeAttributes, facetsSelection, 0, 10);
+      const products: ProductPagedSearchResponse = await ctx.ct.productSearch(searchValue, selectedCategoryId, selectedLanguage, productTypeAttributes, facetsSelection, 0, 10);
 
       setFacetsSelection(null);
       setFacets(facets);
-      setProducts(products.results);
-      setTotalProducts(products.total);
+      setSearchResponse(products);
       setPage(0);
     } catch (e) {
       setError((e as Error).message);
@@ -70,11 +71,10 @@ function App() {
       }
       
       let facets = await ctx.ct.productSearchFacets(searchValue, selectedCategoryId, selectedLanguage, productTypeAttributes, facetsSelection);
-      let products = await ctx.ct.productSearch(searchValue, selectedCategoryId, selectedLanguage, productTypeAttributes, facetsSelection, 0, 10);
+      const products: ProductPagedSearchResponse = await ctx.ct.productSearch(searchValue, selectedCategoryId, selectedLanguage, productTypeAttributes, facetsSelection, 0, 10);
 
       setFacets(facets);
-      setProducts(products.results);
-      setTotalProducts(products.total);
+      setSearchResponse(products);
       setPage(0);
     } catch (e) {
       setError((e as Error).message);
@@ -88,10 +88,9 @@ function App() {
 
     try {
       console.log('search pagination triggered for page=' + newPage);
-      let products = await ctx.ct.productSearch(searchValue, selectedCategoryId, selectedLanguage, productTypeAttributes, facetsSelection, newPage * 10, 10);
+      const products: ProductPagedSearchResponse = await ctx.ct.productSearch(searchValue, selectedCategoryId, selectedLanguage, productTypeAttributes, facetsSelection, newPage * 10, 10);
 
-      setProducts(products.results);
-      setTotalProducts(products.total);
+      setSearchResponse(products);
       setPage(newPage);
     } catch (e) {
       setError((e as Error).message);
@@ -181,7 +180,7 @@ function App() {
         <Form.Select multiple onChange={handleIgnoreAttributes}>
           {
             (productTypeAttributes && productTypeAttributes.getAllAttributes()
-              .map(a => <option key={a.name} value={a.name} selected={a.ignored}>{a.label[selectedLanguage || "en"]} ({a.name})</option>)) || []
+              .map(a => <option key={a.name} value={a.name} selected={a.ignored}>{a.label[currentLang]} ({a.name})</option>)) || []
           }
         </Form.Select>
       </Modal.Body>
@@ -213,7 +212,7 @@ function App() {
           <Stack direction="vertical" gap={3}>
             <div>
               <h2>Categories</h2>
-              {categoryTree ? <CategoryBar selectedCategoryId={selectedCategoryId || undefined} setSelectedCategoryId={setSelectedCategoryId} categoryTree={categoryTree} lang={selectedLanguage || "en"} /> :
+              {categoryTree ? <CategoryBar selectedCategoryId={selectedCategoryId || undefined} setSelectedCategoryId={setSelectedCategoryId} categoryTree={categoryTree} lang={currentLang} /> :
                 <></>}
             </div>
             <div>
@@ -233,7 +232,7 @@ function App() {
         </Col>
         <Col xs={8}>
           <h2>Results</h2>
-          <ProductsPane products={products} total={totalProducts} lang={selectedLanguage} page={page} triggerPagination={triggerSearchPagination} />
+          {searchResponse ? <ProductsPane searchResponse={searchResponse} lang={currentLang} page={page} triggerPagination={triggerSearchPagination} /> : <Spinner />}
         </Col>
       </Row>
     </>
