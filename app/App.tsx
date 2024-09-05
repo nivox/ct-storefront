@@ -13,6 +13,8 @@ import SearchBar from './SearchBar';
 import { ProjectContext, ProjectDetails } from './ProjectContext';
 import { ProductPagedSearchResponse } from '@commercetools/platform-sdk';
 
+export type FacetsMap = Map<string, Map<string, number>>
+
 function App() {
   const ctx = useContext(ProjectContext);
 
@@ -24,7 +26,7 @@ function App() {
 
   const [searchValue, setSearchValue] = useState("");
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
-  const [facets, setFacets] = useState({});
+  const [facets, setFacets] = useState<FacetsMap>(new Map());
   const [searchResponse, setSearchResponse] = useState<ProductPagedSearchResponse | null>(null);
   const [page, setPage] = useState(1);
   const [facetsSelection, setFacetsSelection] = useState<Record<string, string[]> | null>(null);
@@ -46,7 +48,7 @@ function App() {
         return
       }
 
-      let facets = await ctx.ct.productSearchFacets(searchValue, selectedCategoryId, selectedLanguage, productTypeAttributes, facetsSelection);
+      const facets = await ctx.ct.productSearchFacets(searchValue, selectedCategoryId, selectedLanguage, productTypeAttributes, facetsSelection) as FacetsMap;
       const products: ProductPagedSearchResponse = await ctx.ct.productSearch(searchValue, selectedCategoryId, selectedLanguage, productTypeAttributes, facetsSelection, 0, 10);
 
       setFacetsSelection(null);
@@ -70,7 +72,7 @@ function App() {
         return
       }
       
-      let facets = await ctx.ct.productSearchFacets(searchValue, selectedCategoryId, selectedLanguage, productTypeAttributes, facetsSelection);
+      const facets = await ctx.ct.productSearchFacets(searchValue, selectedCategoryId, selectedLanguage, productTypeAttributes, facetsSelection) as FacetsMap;
       const products: ProductPagedSearchResponse = await ctx.ct.productSearch(searchValue, selectedCategoryId, selectedLanguage, productTypeAttributes, facetsSelection, 0, 10);
 
       setFacets(facets);
@@ -171,7 +173,7 @@ function App() {
   const errorAlert = error ? <Alert variant="danger" dismissible onClose={() => setError(null)}>{error}</Alert> : <></>;
 
   const facetsContent = productTypeAttributes ? <Row>
-    <FacetsPane facets={facets} productTypeAttributes={productTypeAttributes} lang={selectedLanguage} facetsSelection={facetsSelection} setFacetSelection={setSingleFacetSelection} />
+    <FacetsPane facets={facets} productTypeAttributes={productTypeAttributes} lang={currentLang} facetsSelection={facetsSelection || {}} setFacetSelection={setSingleFacetSelection} />
     <Modal show={showFacetConfig} onHide={() => setShowFacetConfig(false)}>
       <Modal.Header closeButton>
         <Modal.Title>Ingore attributes</Modal.Title>
