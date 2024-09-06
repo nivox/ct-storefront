@@ -1,5 +1,3 @@
-import 'bootstrap/dist/css/bootstrap.min.css';
-
 import { ChangeEvent, useCallback, useContext, useEffect, useState } from 'react';
 import { useCookies } from 'react-cookie';
 
@@ -12,12 +10,14 @@ import ProductsPane from './ProductsPane';
 import SearchBar from './SearchBar';
 import { ProjectContext, ProjectDetails } from './ProjectContext';
 import { ProductPagedSearchResponse } from '@commercetools/platform-sdk';
+import { useQuery } from '@tanstack/react-query';
 
 export type FacetsMap = Map<string, Map<string, number>>
 
 function App() {
   const ctx = useContext(ProjectContext);
 
+  const [initDone, setInitDone] = useState<boolean>(false);
   const [cookies, setCookies] = useCookies(["config"]);
   const [categoryTree, setCategoryTree] = useState<CategoryTree | null>(null);
   const [productTypeAttributes, setProductTypeAttributes] = useState<ProductTypeAttributes | null>(null);
@@ -26,78 +26,32 @@ function App() {
 
   const [searchValue, setSearchValue] = useState("");
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
-  const [facets, setFacets] = useState<FacetsMap>(new Map());
-  const [searchResponse, setSearchResponse] = useState<ProductPagedSearchResponse | null>(null);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(0);
   const [facetsSelection, setFacetsSelection] = useState<Record<string, string[]> | null>(null);
 
   const [showFacetConfig, setShowFacetConfig] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
   const currentLang = selectedLanguage || "en";
 
-  async function triggerSearch() {
-    if (!ctx) {
-      return
+  const getProducts = async function (): Promise<ProductPagedSearchResponse> {
+    if (!productTypeAttributes) {
+      return Promise.reject("attributes not set")
     }
 
-    try {
-      console.log('search triggered for search=' + searchValue);
-      
-      if (!productTypeAttributes) {
-        return
-      }
-
-      const facets = await ctx.ct.productSearchFacets(searchValue, selectedCategoryId, selectedLanguage, productTypeAttributes, facetsSelection) as FacetsMap;
-      const products: ProductPagedSearchResponse = await ctx.ct.productSearch(searchValue, selectedCategoryId, selectedLanguage, productTypeAttributes, facetsSelection, 0, 10);
-
-      setFacetsSelection(null);
-      setFacets(facets);
-      setSearchResponse(products);
-      setPage(0);
-    } catch (e) {
-      setError((e as Error).message);
-    }
+    return ctx ? ctx.ct.productSearch(searchValue, selectedCategoryId, selectedLanguage, productTypeAttributes, facetsSelection, page * 10, 10) : Promise.reject("context not set")
   }
 
-  const triggerSearchRefinement = useCallback(async () => {
-    if (!ctx) {
-      return
-    }
+  const params = { page, searchValue, selectedCategoryId, selectedLanguage, facetsSelection };
 
-    try {
-      console.log('search refinement triggered');
+  const productsQuery = useQuery({ queryKey: ['products', params], queryFn: getProducts })
+  const products = productsQuery.data;
 
-      if (!productTypeAttributes) {
-        return
-      }
-      
-      const facets = await ctx.ct.productSearchFacets(searchValue, selectedCategoryId, selectedLanguage, productTypeAttributes, facetsSelection) as FacetsMap;
-      const products: ProductPagedSearchResponse = await ctx.ct.productSearch(searchValue, selectedCategoryId, selectedLanguage, productTypeAttributes, facetsSelection, 0, 10);
-
-      setFacets(facets);
-      setSearchResponse(products);
-      setPage(0);
-    } catch (e) {
-      setError((e as Error).message);
-    }
-  }, [ctx, searchValue, selectedCategoryId, selectedLanguage, productTypeAttributes, facetsSelection]);
-
-  async function triggerSearchPagination(newPage: number) {
-    if (!ctx) {
-      return
-    }
-
-    try {
-      console.log('search pagination triggered for page=' + newPage);
-      const products: ProductPagedSearchResponse = await ctx.ct.productSearch(searchValue, selectedCategoryId, selectedLanguage, productTypeAttributes, facetsSelection, newPage * 10, 10);
-
-      setSearchResponse(products);
-      setPage(newPage);
-    } catch (e) {
-      setError((e as Error).message);
-    }
+  const getFacets = async function (): Promise<FacetsMap> {
+    return ctx ? await ctx.ct.productSearchFacets(params.searchValue, params.selectedCategoryId, params.selectedLanguage, productTypeAttributes, params.facetsSelection) as FacetsMap : Promise.reject("context not set");
   }
+
+  const facetsQuery = useQuery({ queryKey: ['facets', params], queryFn: getFacets })
+  const facetsData = facetsQuery.data;
 
   function setSingleFacetSelection(facetName: string, selections: string[]) {
     const currentSelections = facetsSelection || {};
@@ -126,12 +80,28 @@ function App() {
       setProductTypeAttributes(productTypeAttributes);
       setLanguageList(languages);
       setSelectedLanguage(languages[0]);
+
       console.log(cookies);
-      setCookies("config", { projectKey: ctx.projectKey, token: ctx.token, apiEndpoint: ctx.apiEndpoint, ignoredAttributes: (cookies.config && cookies.config.ignoredAttributes) || {} });
+      setCookies("config", {
+        projectKey: ctx.projectKey,
+        clientId: ctx.clientId,
+        clientSecret: ctx.clientSecret,
+        token: ctx.token,
+        apiEndpoint: ctx.apiEndpoint,
+        authEndpoint: ctx.authEndpoint,
+        ignoredAttributes: (cookies.config && cookies.config.ignoredAttributes) || {}
+      });
     } catch (e) {
-      setError((e as Error).message);
+      setError("init error: " + (e as Error).message);
     }
   }, [cookies, setCookies, setError, setSelectedLanguage, setLanguageList, setProductTypeAttributes, setCategoryTree])
+
+  useEffect(() => {
+    if (ctx && !initDone) {
+      setInitDone(true)
+      init(ctx)
+    }
+  }, [ctx, init, initDone])
 
   function handleIgnoreAttributes(e: ChangeEvent) {
     if (!ctx) {
@@ -160,20 +130,11 @@ function App() {
     console.log(`Setting ignored attributes to ${ignoredAttributes}`);
   }
 
-  useEffect(() => {
-    if (ctx) triggerSearchRefinement();
-  }, [facetsSelection, selectedCategoryId, ctx, triggerSearchRefinement]);
-
-  useEffect(() => {
-    if (ctx) {
-      init(ctx)
-    }
-  }, [ctx])
-
   const errorAlert = error ? <Alert variant="danger" dismissible onClose={() => setError(null)}>{error}</Alert> : <></>;
 
-  const facetsContent = productTypeAttributes ? <Row>
-    <FacetsPane facets={facets} productTypeAttributes={productTypeAttributes} lang={currentLang} facetsSelection={facetsSelection || {}} setFacetSelection={setSingleFacetSelection} />
+  const facetsError = facetsQuery.isError ? <Alert>{facetsQuery.error.message}</Alert> : <></>
+  const facetsContent = productTypeAttributes && facetsData ? <Row>
+    <FacetsPane facets={facetsData} productTypeAttributes={productTypeAttributes} lang={currentLang} facetsSelection={facetsSelection || {}} setFacetSelection={setSingleFacetSelection} />
     <Modal show={showFacetConfig} onHide={() => setShowFacetConfig(false)}>
       <Modal.Header closeButton>
         <Modal.Title>Ingore attributes</Modal.Title>
@@ -194,11 +155,11 @@ function App() {
       <Row>
         {errorAlert}
       </Row>
-      <Row>
-        <Col>
+      <Row className='mb-2 mt-2'>
+        <Col md="10">
           <h1>{ctx.projectKey} storefront</h1>
         </Col>
-        <Col>
+        <Col md="2" xs="3" sm="3" >
           <Form.Select onChange={e => setSelectedLanguage(e.target.value)}>
             {languageList.map(l => <option key={l} value={l}>{l}</option>)}
           </Form.Select>
@@ -206,35 +167,32 @@ function App() {
       </Row>
       <Row>
         <Col>
-          <SearchBar searchValue={searchValue} setSearchValue={setSearchValue} onTriggerSearch={triggerSearch} />
+          <SearchBar searchValue={searchValue} setSearchValue={setSearchValue} onTriggerSearch={() => productsQuery.refetch()} />
         </Col>
       </Row>
-      <Row>
+      <Row className='mt-2'>
         <Col>
           <Stack direction="vertical" gap={3}>
-            <div>
-              <h2>Categories</h2>
-              {categoryTree ? <CategoryBar selectedCategoryId={selectedCategoryId || undefined} setSelectedCategoryId={setSelectedCategoryId} categoryTree={categoryTree} lang={currentLang} /> :
-                <></>}
-            </div>
-            <div>
-              <Container>
-                <Row>
-                  <Col>
-                    <h2>Facets</h2>
-                  </Col>
-                  <Col>
-                    <Button onClick={() => setShowFacetConfig(true)}>config</Button>
-                  </Col>
-                </Row>
-                {facetsContent}
-              </Container>
-            </div>
+            <h2>Categories</h2>
+            <Row>
+              {categoryTree ? <CategoryBar selectedCategoryId={selectedCategoryId || undefined} setSelectedCategoryId={setSelectedCategoryId} categoryTree={categoryTree} lang={currentLang} /> : <></>}
+            </Row>
+            <Row>
+              <Col>
+                <h2>Facets</h2>
+              </Col>
+              <Col>
+                <Button onClick={() => setShowFacetConfig(true)}>config</Button>
+              </Col>
+            </Row>
+            <Row>{facetsError}</Row>
+            <Row>{facetsContent}</Row>
           </Stack>
         </Col>
         <Col xs={8}>
           <h2>Results</h2>
-          {searchResponse ? <ProductsPane searchResponse={searchResponse} lang={currentLang} page={page} triggerPagination={triggerSearchPagination} /> : <Spinner />}
+          {productsQuery.isError ? <Alert>{productsQuery.error?.message}</Alert> : <></>}
+          {products ? <ProductsPane searchResponse={products} lang={currentLang} page={page} triggerPagination={(page) => setPage(page)} /> : <Spinner />}
         </Col>
       </Row>
     </>
