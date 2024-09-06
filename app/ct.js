@@ -45,11 +45,11 @@ function _distinctFacet(name, field, filter=null, lang=null, fieldType=null) {
 }
 
 function extractFacets(facetResp) {
-  const facets = {}
+  const facets = new Map();
   facetResp.forEach(f => {
-    const buckets = {};
-    f.buckets.forEach(b => buckets[b.key] = b.count);
-    facets[f.name] = buckets
+    const buckets = new Map();
+    f.buckets.forEach(b => buckets.set(b.key, b.count));
+    facets.set(f.name, buckets);
   });
 
   return facets
@@ -67,7 +67,7 @@ function _productSearchText(searchText, lang) {
 }
 
 function _productFacetsFilter(facetsValue, productTypeAttributes, lang, targetFacet) {
-  if (!facetsValue) return null;
+  if (!facetsValue || !productTypeAttributes) return null;
   const validFacets = Object.entries(facetsValue)
       .filter(([facetName, _]) => facetName !== targetFacet)
 
