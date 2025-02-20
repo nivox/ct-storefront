@@ -6,7 +6,6 @@ import { ProjectContext, ProjectDetails } from "./ProjectContext";
 import Login from "./Login";
 import { MantineProvider } from "@mantine/core";
 
-import 'bootstrap/dist/css/bootstrap.min.css';
 import '@mantine/core/styles.css';
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";

@@ -1,9 +1,10 @@
 
 
-function _expr(type, field, text, lang=null, fieldType=null) {
+function _expr(type, field, text, lang=null, fieldType=null, params = {}) {
   const expr = {
     field: field,
-    value: text
+    value: text,
+    ...params
   }
 
   if (lang) {
@@ -56,10 +57,11 @@ function extractFacets(facetResp) {
 }
 
 function _productSearchText(searchText, lang) {
+  const matchAny = {"mustMatch": "any"};
   return _compoundExpr("or", [
-    _expr("fullText", "name", searchText, lang),
-    _expr("fullText", "description", searchText, lang),
-    _expr("fullText", "slug", searchText, lang),
+    _expr("fullText", "name", searchText, lang, null, matchAny),
+    _expr("fullText", "description", searchText, lang, null, matchAny),
+    _expr("fullText", "slug", searchText, lang, null, matchAny),
     _expr("exact", "key", searchText),
     _expr("exact", "variants.key", searchText),
     _expr("exact", "variants.sku", searchText)
@@ -199,6 +201,7 @@ class Ct {
     ]);
 
     const postFilter = _productFacetsFilter(facetsValues, productTypeAttributes, lang, null);
+    console.log("query", JSON.stringify(query, null, 2));
     return this._productSearchRequest(query, postFilter, null, offset, limit);
   }
 }

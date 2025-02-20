@@ -1,5 +1,4 @@
-import { MultiSelect, ComboboxItem } from '@mantine/core';
-import Stack from 'react-bootstrap/Stack';
+import { MultiSelect, ComboboxItem, Stack } from '@mantine/core';
 import { FacetsMap } from './App';
 import { ProductTypeAttributes } from './utils';
 
@@ -30,7 +29,7 @@ function FacetsPane(props: { facets: FacetsMap, facetsSelection: Record<string, 
 
 
   return (
-    <Stack direction="vertical" gap={3}>
+    <Stack gap={3}>
       {facetEntries}
     </Stack>
   )

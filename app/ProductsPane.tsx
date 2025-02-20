@@ -1,18 +1,20 @@
-import Card from 'react-bootstrap/Card';
-import Pagination from 'react-bootstrap/Pagination';
 import { ProductPagedSearchResponse, ProductSearchResult } from '@commercetools/platform-sdk';
-import { Col, Row } from 'react-bootstrap';
+import { Card, Pagination, Image, Stack, Badge, Text } from '@mantine/core';
 
 function ProductEntry(props: { product: ProductSearchResult, lang: string }) {
   const { product, lang } = props;
-  const images = product.productProjection?.masterVariant?.images
+  const productProjection = product.productProjection;
+  const images = productProjection?.masterVariant?.images
 
   return (
-    <Card>
-      <Card.Img variant="top" style={{ height: "20vh", width: "100%", "objectFit": "scale-down" }} src={images && images[0] ? images[0].url : ""} />
-      <Card.Body style={{ height: "150px", overflow: "auto" }}>
-        <Card.Title>{product.productProjection?.name[lang]}</Card.Title>
-      </Card.Body>
+    <Card withBorder>
+      <Card.Section>
+        <Image src={images?.[0]?.url} mah={100} fallbackSrc="https://placehold.co/300x200?text=Placeholder" radius="md" />
+      </Card.Section>
+      <Card.Section>
+        <Text>{productProjection?.name[lang]}</Text>
+        <Badge>{productProjection?.key}</Badge>
+      </Card.Section>
     </Card>
   )
 }
@@ -25,24 +27,17 @@ interface ProductsPaneProps {
 }
 
 function ProductsPane({ searchResponse, page, lang, triggerPagination }: ProductsPaneProps) {
-  const productEntries = searchResponse.results.map((p, index) => <Col key={index}><ProductEntry key={p.id} product={p} lang={lang} /></Col>);
+  const productEntries = searchResponse.results.map((p) => <ProductEntry key={p.id} product={p} lang={lang} />);
   const total = searchResponse.total;
-
-  const prev = page > 0 ? <Pagination.Prev onClick={() => triggerPagination(page - 1)} /> : null;
-  const next = total / 10 > (page + 1) ? <Pagination.Next onClick={() => triggerPagination(page + 1)} /> : null;
+  const pagination = <Pagination value={page} onChange={triggerPagination} total={searchResponse.total} />
 
   return (
-    <div>
-      <p>Found {total} products ({Math.ceil(total / 10)} pages)</p>
-      <Pagination>
-        {prev}
-        <Pagination.Item active>{page + 1}</Pagination.Item>
-        {next}
-      </Pagination>
-      <Row xs={1} md={2} lg={5} className="g-4">
-        {productEntries}
-      </Row>
-    </div>
+    <Stack>
+      <Text>Found {total} products ({Math.ceil(total / 10)} pages)</Text>
+      {pagination}
+      {productEntries}
+      {pagination}
+    </Stack>
   )
 }
 
