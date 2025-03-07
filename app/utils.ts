@@ -1,3 +1,5 @@
+import { AttributeDefinition, ProductType } from "@commercetools/platform-sdk";
+
 interface CategoryReference {
   id: string
 }
@@ -54,22 +56,15 @@ export class CategoryTree {
   }
 }
 
-interface ProductType {
-  id: string,
-  attributes: ProductAttribute[]
-}
-
-export interface ProductAttribute {
-  type: { name: string },
-  name: string,
-  label: Record<string, string>,
-  isSearchable: boolean
-  ignored: boolean
-}
-
 const ignoredAttributeTypes = ["date", "datetime", "reference", "set"]
 
-const validAttribute = (a: ProductAttribute) => a.isSearchable === true && !ignoredAttributeTypes.find(typeName => typeName === a.type.name)
+const validAttribute = (a: AttributeDefinition) => a.isSearchable === true && !ignoredAttributeTypes.find(typeName => typeName === a.type.name)
+
+
+export interface ProductAttribute {
+  definition: AttributeDefinition,
+  ignored: boolean
+}
 
 export class ProductTypeAttributes {
   productTypeAttributeMap: Record<string, ProductAttribute[]>;
@@ -78,11 +73,11 @@ export class ProductTypeAttributes {
     this.productTypeAttributeMap = {};
     this.attributeMap = {};
     productTypes.forEach(pt => {
-      this.productTypeAttributeMap[pt.id] = pt.attributes.filter(validAttribute);
-      pt.attributes.forEach(a => {
+      this.productTypeAttributeMap[pt.id] = pt.attributes?.filter(validAttribute).map(a => { return {definition: a, ignored: false}}) || [];
+      pt.attributes?.forEach(a => {
         if (validAttribute(a)) {
           console.log("valid", a);
-          this.attributeMap[a.name] = a;
+          this.attributeMap[a.name] = { definition: a, ignored: false };
         }
       });
     });

@@ -1,4 +1,4 @@
-import { SearchOrExpression, SearchFullTextExpression, SearchExactExpression, SearchCompoundExpression, ByProjectKeyRequestBuilder, ProductSearchFacetDistinctExpression, _ProductSearchFacetResult, ProductSearchFacetResultBucket } from "@commercetools/platform-sdk";
+import { SearchOrExpression, SearchFullTextExpression, SearchExactExpression, SearchCompoundExpression, ByProjectKeyRequestBuilder, ProductSearchFacetDistinctExpression, _ProductSearchFacetResult, ProductSearchFacetResultBucket, ByProjectKeyApiClientsRequestBuilder, Category, ProductType } from "@commercetools/platform-sdk";
 import { ProductAttribute, ProductTypeAttributes } from "./utils";
 import { FacetsMap } from "./App";
 
@@ -24,7 +24,7 @@ function _productFacetsFilter(facetsValue: Record<string, string[]>, productType
   const facets = {
     "and": validFacets.map(([facetName, values]) => {
       console.log(`Processing facet ${facetName} with values ${values}`)
-      const atype = productTypeAttributes.getAttribute(facetName).type.name;
+      const atype = productTypeAttributes.getAttribute(facetName).definition.type.name;
       let exprLang = null;
       if (atype === "ltext" || atype === "lenum") exprLang = lang;
 
@@ -45,13 +45,18 @@ function _productFacetsFilter(facetsValue: Record<string, string[]>, productType
   return validFacets.length > 0 ? facets : null;
 }
 
-export async function productSearchFacets(api: ByProjectKeyRequestBuilder, searchText: string, categoryId: string | null, lang: string, productTypeAttributes: ProductTypeAttributes | null, facetsValues: Record<string, string[]>) {
-  const query = {
-    "and": [
-      categoryId ? { "exact": { field: "categoriesSubTree", value: categoryId } } : null,
-      searchText !== "" ? _productSearchText(searchText, lang) : null
-    ]
-  };
+export async function productSearchFacets(api: ByProjectKeyRequestBuilder, searchText: string, categoryId: string | null, lang: string, productTypeAttributes: ProductTypeAttributes, facetsValues: Record<string, string[]>) {
+  const criteria = [
+    categoryId ? { "exact": { field: "categoriesSubTree", value: categoryId } } : null,
+    searchText !== "" ? _productSearchText(searchText, lang) : null
+  ].filter(e => e !== null);
+
+  var query = undefined;
+  if (criteria.length >= 2) {
+    query = { "and": criteria };
+  } else if (criteria.length == 1) {
+    query = criteria[0];
+  }
 
   const postFilter = _productFacetsFilter(facetsValues, productTypeAttributes, lang, null);
 
@@ -73,12 +78,12 @@ export async function productSearchFacets(api: ByProjectKeyRequestBuilder, searc
   )
 
   const facets = attributes.map(a => {
-    let field = "variants.attributes." + a.name;
-    if (a.type.name === "enum" || a.type.name === "lenum") {
-      field = `variants.attributes.${a.name}.label`;
+    let field = "variants.attributes." + a.definition.name;
+    if (a.definition.type.name === "enum" || a.definition.type.name === "lenum") {
+      field = `variants.attributes.${a.definition.name}.label`;
     }
-    const filter = _productFacetsFilter(facetsValues, productTypeAttributes, lang, a.name);
-    return { "distinct": { name: a.name, field: field, filter, language: lang, fieldType: a.type.name } } as ProductSearchFacetDistinctExpression
+    const filter = _productFacetsFilter(facetsValues, productTypeAttributes, lang, a.definition.name);
+    return { "distinct": { name: a.definition.name, field: field, filter, language: lang, fieldType: a.definition.type.name } } as ProductSearchFacetDistinctExpression
   });
 
   const facetsResponse = await api.products().search().post({ body: { query, postFilter: postFilter || undefined, limit: 0, offset: 0, facets } }).execute();
@@ -89,20 +94,42 @@ export async function productSearchFacets(api: ByProjectKeyRequestBuilder, searc
     })
     return [facet.name, facetValues]
   }))
-  
+
   return facetsMap;
 }
 
 export async function productSearch(api: ByProjectKeyRequestBuilder, searchText: string, categoryId: string | null, lang: string, productTypeAttributes: ProductTypeAttributes, facetsValues: Record<string, string[]>, offset: number, limit: number) {
-  const query = {
-    "and": [
-      categoryId ? { "exact": { field: "categoriesSubTree", value: categoryId } } : null,
-      searchText !== "" ? _productSearchText(searchText, lang) : null
-    ]
-  };
+  const criteria = [
+    categoryId ? { "exact": { field: "categoriesSubTree", value: categoryId } } : null,
+    searchText !== "" ? _productSearchText(searchText, lang) : null
+  ].filter(e => e !== null);
+
+  var query = undefined;
+  if (criteria.length >= 2) {
+    query = { "and": criteria };
+  } else if (criteria.length == 1) {
+    query = criteria[0];
+  }
 
   const postFilter = _productFacetsFilter(facetsValues, productTypeAttributes, lang, null);
   console.log("query", JSON.stringify(query, null, 2));
-  return await api.products().search().post({ body: { query, postFilter: postFilter || undefined, offset, limit } }).execute();
+  return await api.products().search().post({ body: { query, postFilter: postFilter || undefined, offset, limit, productProjectionParameters: {} } }).execute();
 }
 
+export async function fetchCategories(api: ByProjectKeyRequestBuilder): Promise<Category[]> {
+  // we should iterate over the pagination
+  let response = await api.categories().get().execute();
+  return response.body.results
+}
+
+export async function fetchProductTypes(api: ByProjectKeyRequestBuilder): Promise<ProductType[]> {
+  // we should iterate over the pagination
+  let response = await api.productTypes().get().execute();
+  return response.body.results
+}
+
+export async function fetchLanguages(api: ByProjectKeyRequestBuilder): Promise<string[]> {
+  // we should iterate over the pagination
+  let response = await api.get().execute();
+  return response.body.languages
+}

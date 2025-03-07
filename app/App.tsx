@@ -10,7 +10,7 @@ import { ProjectContext, ProjectDetails } from './ProjectContext';
 import { ProductPagedSearchResponse } from '@commercetools/platform-sdk';
 import { useQuery } from '@tanstack/react-query';
 import { Alert, Button, ComboboxItem, Container, Loader, Modal, Select, SimpleGrid, Stack, Title } from '@mantine/core';
-import { productSearch, productSearchFacets } from './ct';
+import { fetchCategories, fetchLanguages, fetchProductTypes, productSearch, productSearchFacets } from './ct';
 
 export type FacetsMap = Map<string, object>
 
@@ -20,7 +20,7 @@ function App() {
   const [initDone, setInitDone] = useState<boolean>(false);
   const [cookies, setCookies] = useCookies(["config"]);
   const [categoryTree, setCategoryTree] = useState<CategoryTree | null>(null);
-  const [productTypeAttributes, setProductTypeAttributes] = useState<ProductTypeAttributes | null>(null);
+  const [productTypeAttributes, setProductTypeAttributes] = useState<ProductTypeAttributes>(new ProductTypeAttributes([]));
   const [languageList, setLanguageList] = useState<string[]>([]);
   const [selectedLanguage, setSelectedLanguage] = useState<string | null>(languageList[0]);
 
@@ -47,7 +47,7 @@ function App() {
   const products = productsQuery.data;
 
   const getFacets = async function(): Promise<FacetsMap> {
-    return ctx ? await productSearchFacets(ctx.projectClient, params.searchValue, params.selectedCategoryId, currentLang, productTypeAttributes, params.facetsSelection || {}) : Promise.reject("context not set");
+    return ctx ? await productSearchFacets(ctx.projectClient, params.searchValue, params.selectedCategoryId, currentLang, productTypeAttributes || {}, params.facetsSelection || {}) : Promise.reject("context not set");
   }
 
   const facetsQuery = useQuery({ queryKey: ['facets', params], queryFn: getFacets })
@@ -68,9 +68,9 @@ function App() {
 
   const init = useCallback(async function(ctx: ProjectDetails) {
     try {
-      const categoryTree = new CategoryTree(await ctx.ct.fetchCategories());
-      const productTypeAttributes = new ProductTypeAttributes(await ctx.ct.fetchProductTypes());
-      const languages = await ctx.ct.fetchLanguages();
+      const categoryTree = new CategoryTree(await fetchCategories(ctx.projectClient));
+      const productTypeAttributes = new ProductTypeAttributes(await fetchProductTypes(ctx.projectClient));
+      const languages = await fetchLanguages(ctx.projectClient);
 
       if (cookies.config && cookies.config.ignoredAttributes) {
         (cookies.config.ignoredAttributes[ctx.projectKey] || []).forEach((a: string) => productTypeAttributes.setIgnoreAttribute(a, true));
@@ -133,7 +133,7 @@ function App() {
   const errorAlert = error ? <Alert variant="danger" onClose={() => setError(null)}>{error}</Alert> : <></>;
 
   const attributeOptions = (productTypeAttributes && productTypeAttributes.getAllAttributes()
-    .map(a => <option key={a.name} value={a.name} selected={a.ignored}>{a.label[currentLang]} ({a.name})</option>)) || []
+    .map(a => <option key={a.definition.name} value={a.definition.name} selected={a.ignored}>{a.definition.label[currentLang]} ({a.definition.name})</option>)) || []
 
   const facetsError = facetsQuery.isError ? <Alert>{facetsQuery.error.message}</Alert> : <></>
   const facetsContent = productTypeAttributes && facetsData ? <Stack>

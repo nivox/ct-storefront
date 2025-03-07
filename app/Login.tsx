@@ -1,7 +1,6 @@
 import { useCallback, useState } from "react";
 import { useCookies } from "react-cookie";
 import { apiEndpointDefault, authEndpointDefault, ProjectDetails } from "./ProjectContext";
-import Ct from "./ct";
 import commercetools, { getAccessToken } from "./CommercetoolsClient";
 import { ByProjectKeyRequestBuilder } from "@commercetools/platform-sdk";
 import { Button, PasswordInput, Stack, TextInput } from "@mantine/core";
@@ -30,7 +29,6 @@ export default function Login(props: { setProjectDetails: (details: ProjectDetai
       clientSecret,
       apiEndpoint: apiEndpoint,
       authEndpoint: authEndpoint,
-      ct: new Ct(token, projectKey, apiEndpoint),
       projectClient
     })
   }, [projectKey, clientId, clientSecret, apiEndpoint, authEndpoint, setProjectDetails, setCookies])

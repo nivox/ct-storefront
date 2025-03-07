@@ -1,5 +1,4 @@
 import { createContext } from "react";
-import Ct from "./ct";
 import { ByProjectKeyRequestBuilder } from "@commercetools/platform-sdk";
 
 export const apiEndpointDefault = "https://api.europe-west1.gcp.commercetools.com";
@@ -12,7 +11,6 @@ export interface ProjectDetails {
     clientSecret: string,
     apiEndpoint: string,
     authEndpoint: string,
-    ct: Ct,
     projectClient: ByProjectKeyRequestBuilder
 }
 
