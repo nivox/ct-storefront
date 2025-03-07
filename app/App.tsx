@@ -1,4 +1,4 @@
-import { ChangeEvent, useCallback, useContext, useEffect, useState } from 'react';
+import { useCallback, useContext, useEffect, useState } from 'react';
 import { useCookies } from 'react-cookie';
 
 import { CategoryTree, ProductTypeAttributes } from './utils';
@@ -9,10 +9,10 @@ import SearchBar from './SearchBar';
 import { ProjectContext, ProjectDetails } from './ProjectContext';
 import { ProductPagedSearchResponse } from '@commercetools/platform-sdk';
 import { useQuery } from '@tanstack/react-query';
-import { Alert, Button, ComboboxItem, Container, Loader, Modal, Select, SimpleGrid, Stack, Title } from '@mantine/core';
+import { Alert, Button, ComboboxItem, Container, Loader, Modal, MultiSelect, Select, SimpleGrid, Stack, Title } from '@mantine/core';
 import { fetchCategories, fetchLanguages, fetchProductTypes, productSearch, productSearchFacets } from './ct';
 
-export type FacetsMap = Map<string, object>
+export type FacetsMap = Map<string, Map<string, number>>
 
 function App() {
   const ctx = useContext(ProjectContext);
@@ -43,14 +43,14 @@ function App() {
 
   const params = { page, searchValue, selectedCategoryId, selectedLanguage, facetsSelection };
 
-  const productsQuery = useQuery({ queryKey: ['products', params], queryFn: getProducts })
+  const productsQuery = useQuery({ queryKey: ['products', params], queryFn: getProducts, retry: false })
   const products = productsQuery.data;
 
   const getFacets = async function(): Promise<FacetsMap> {
     return ctx ? await productSearchFacets(ctx.projectClient, params.searchValue, params.selectedCategoryId, currentLang, productTypeAttributes || {}, params.facetsSelection || {}) : Promise.reject("context not set");
   }
 
-  const facetsQuery = useQuery({ queryKey: ['facets', params], queryFn: getFacets })
+  const facetsQuery = useQuery({ queryKey: ['facets', params], queryFn: getFacets, retry: false })
   const facetsData = facetsQuery.data;
 
   function setSingleFacetSelection(facetName: string, selections: string[]) {
@@ -103,7 +103,7 @@ function App() {
     }
   }, [ctx, init, initDone])
 
-  function handleIgnoreAttributes(e: ChangeEvent) {
+  function handleIgnoreAttributes(ignoredAttributes: string[]) {
     if (!ctx) {
       return
     }
@@ -112,11 +112,14 @@ function App() {
       return
     }
 
-    let ignoredAttributes: string[] = [];
-    Array.from((e.target as HTMLSelectElement).options).forEach(o => {
-      productTypeAttributes.setIgnoreAttribute(o.value, o.selected);
-      if (o.selected) ignoredAttributes.push(o.value);
+    productTypeAttributes.getAllAttributes().forEach(attribute => {
+      productTypeAttributes.setIgnoreAttribute(attribute.definition.name, false);
+    })
+
+    ignoredAttributes.forEach(attribute => {
+      productTypeAttributes.setIgnoreAttribute(attribute, true);
     });
+
     let config = {
       ignoredAttributes: {},
       ...(cookies.config || {}),
@@ -133,7 +136,7 @@ function App() {
   const errorAlert = error ? <Alert variant="danger" onClose={() => setError(null)}>{error}</Alert> : <></>;
 
   const attributeOptions = (productTypeAttributes && productTypeAttributes.getAllAttributes()
-    .map(a => <option key={a.definition.name} value={a.definition.name} selected={a.ignored}>{a.definition.label[currentLang]} ({a.definition.name})</option>)) || []
+    .map(a => {return { label: a.definition.name, value: a.definition.name } }))  || []
 
   const facetsError = facetsQuery.isError ? <Alert>{facetsQuery.error.message}</Alert> : <></>
   const facetsContent = productTypeAttributes && facetsData ? <Stack>
@@ -143,8 +146,7 @@ function App() {
         <Modal.Title>Ingore attributes</Modal.Title>
       </Modal.Header>
       <Modal.Body>
-        <Select label="attributes">
-        </Select>
+        <MultiSelect label="attributes" data={attributeOptions} onChange={handleIgnoreAttributes}/>
       </Modal.Body>
     </Modal>
   </Stack> : <></>

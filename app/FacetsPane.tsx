@@ -1,4 +1,4 @@
-import { MultiSelect, ComboboxItem, Stack } from '@mantine/core';
+import { MultiSelect, ComboboxItem, Stack, Title } from '@mantine/core';
 import { FacetsMap } from './App';
 import { ProductTypeAttributes } from './utils';
 
@@ -19,19 +19,26 @@ function FacetEntry(props: { facetName: string, facetLabel: string, facetOptions
 
 function FacetsPane(props: { facets: FacetsMap, facetsSelection: Record<string, string[]>, productTypeAttributes: ProductTypeAttributes, lang: string, setFacetSelection: (facetName: string, selections: string[]) => void }) {
   const { facets, lang, productTypeAttributes, facetsSelection, setFacetSelection } = props;
-  const facetEntries = Array.from(facets.entries())
+  const facetsMap = facets as Map<string, Map<string, number>>
+
+  const facetEntries = Array.from(facetsMap.entries())
     .filter(([_, facetOptions]) => facetOptions.size > 0)
     .map(([facetName, facetOptions]) => {
-      let facetLabel = productTypeAttributes.getAttribute(facetName).label[lang];
+      let facetLabel = productTypeAttributes.getAttribute(facetName).definition.label[lang];
       let selection = (facetsSelection && facetsSelection[facetName]) || [];
       return <FacetEntry key={facetName} facetName={facetName} facetLabel={facetLabel} facetOptions={facetOptions} facetSelection={selection} setFacetSelection={setFacetSelection} />
     });
 
-
   return (
+    <>
+    <Title>Facets</Title>
     <Stack gap={3}>
       {facetEntries}
     </Stack>
+    <pre>
+    {JSON.stringify(facetsMap)}
+    </pre>
+  </>
   )
 }
 
