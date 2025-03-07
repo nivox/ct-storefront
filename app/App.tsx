@@ -9,9 +9,10 @@ import SearchBar from './SearchBar';
 import { ProjectContext, ProjectDetails } from './ProjectContext';
 import { ProductPagedSearchResponse } from '@commercetools/platform-sdk';
 import { useQuery } from '@tanstack/react-query';
-import { Alert, Button, ComboboxItem, Container, Group, Loader, Modal, Select, SimpleGrid, Stack, Title } from '@mantine/core';
+import { Alert, Button, ComboboxItem, Container, Loader, Modal, Select, SimpleGrid, Stack, Title } from '@mantine/core';
+import { productSearch, productSearchFacets } from './ct';
 
-export type FacetsMap = Map<string, Map<string, number>>
+export type FacetsMap = Map<string, object>
 
 function App() {
   const ctx = useContext(ProjectContext);
@@ -37,7 +38,7 @@ function App() {
       return Promise.reject("attributes not set")
     }
 
-    return ctx ? ctx.ct.productSearch(searchValue, selectedCategoryId, selectedLanguage, productTypeAttributes, facetsSelection, page * 10, 10) : Promise.reject("context not set")
+    return ctx ? (await productSearch(ctx.projectClient, searchValue, selectedCategoryId, currentLang, productTypeAttributes, facetsSelection || {}, page * 10, 10)).body : Promise.reject("context not set")
   }
 
   const params = { page, searchValue, selectedCategoryId, selectedLanguage, facetsSelection };
@@ -46,7 +47,7 @@ function App() {
   const products = productsQuery.data;
 
   const getFacets = async function(): Promise<FacetsMap> {
-    return ctx ? await ctx.ct.productSearchFacets(params.searchValue, params.selectedCategoryId, params.selectedLanguage, productTypeAttributes, params.facetsSelection) as FacetsMap : Promise.reject("context not set");
+    return ctx ? await productSearchFacets(ctx.projectClient, params.searchValue, params.selectedCategoryId, currentLang, productTypeAttributes, params.facetsSelection || {}) : Promise.reject("context not set");
   }
 
   const facetsQuery = useQuery({ queryKey: ['facets', params], queryFn: getFacets })

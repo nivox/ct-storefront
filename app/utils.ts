@@ -59,7 +59,7 @@ interface ProductType {
   attributes: ProductAttribute[]
 }
 
-interface ProductAttribute {
+export interface ProductAttribute {
   type: { name: string },
   name: string,
   label: Record<string, string>,

@@ -4,7 +4,7 @@ import { apiEndpointDefault, authEndpointDefault, ProjectDetails } from "./Proje
 import Ct from "./ct";
 import commercetools, { getAccessToken } from "./CommercetoolsClient";
 import { ByProjectKeyRequestBuilder } from "@commercetools/platform-sdk";
-import { Button, Group, PasswordInput, Stack, TextInput } from "@mantine/core";
+import { Button, PasswordInput, Stack, TextInput } from "@mantine/core";
 
 export default function Login(props: { setProjectDetails: (details: ProjectDetails) => void }) {
   const { setProjectDetails } = props;
