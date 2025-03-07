@@ -1,29 +1,27 @@
-import { SearchOrExpression, SearchFullTextExpression, SearchExactExpression, SearchCompoundExpression, ByProjectKeyRequestBuilder, ProductSearchFacetDistinctExpression, _ProductSearchFacetResult, ProductSearchFacetResultBucket, Category, ProductType, SearchQueryExpression} from "@commercetools/platform-sdk";
+import { SearchOrExpression, SearchFullTextExpression, SearchExactExpression, SearchCompoundExpression, ByProjectKeyRequestBuilder, ProductSearchFacetDistinctExpression, _ProductSearchFacetResult, ProductSearchFacetResultBucket, Category, ProductType, SearchQueryExpression, SearchQuery, SearchPrefixExpression } from "@commercetools/platform-sdk";
 import { ProductAttribute, ProductTypeAttributes } from "./utils";
 
-// TODO: what is the proper way to combine with the facet expressions?
-function variantLevelExpression(searchText: string, lang: string, facetExpressions: SearchQueryExpression[] = []) {
-  return {
+function _productCriteria(searchText: string, lang: string, postFilter: SearchQuery | null): SearchQuery {
+  let query = {
     "or": [
-      { "exact": { field: "variants.key", value: searchText, language: lang, mustMatch: 'any' } } as SearchExactExpression,
-      { "exact": { field: "variants.sku", value: searchText, language: lang, mustMatch: 'any' } } as SearchExactExpression,
+      { "fullText": { field: "name", value: searchText, language: lang, mustMatch: 'any' } } as SearchFullTextExpression,
+      { "fullText": { field: "description", value: searchText, language: lang, mustMatch: 'any' } } as SearchFullTextExpression,
+      { "fullText": { field: "slug", value: searchText, language: lang, mustMatch: 'any' } } as SearchFullTextExpression,
+      { "prefix": { field: "key", value: searchText } } as SearchPrefixExpression,
+      { "prefix": { field: "variants.key", value: searchText } } as SearchPrefixExpression,
+      { "prefix": { field: "variants.sku", value: searchText } } as SearchPrefixExpression,
     ]
   }
-}
 
-function _productSearchText(searchText: string, lang: string): SearchOrExpression {
-  return {
-    "or": [
-      {
-        "or": [
-          { "fullText": { field: "name", value: searchText, language: lang, mustMatch: 'any' } } as SearchFullTextExpression,
-          { "fullText": { field: "description", value: searchText, language: lang, mustMatch: 'any' } } as SearchFullTextExpression,
-          { "fullText": { field: "slug", value: searchText, language: lang, mustMatch: 'any' } } as SearchFullTextExpression,
-          { "exact": { field: "key", value: searchText, language: lang, mustMatch: 'any' } } as SearchExactExpression,
-        ]
-      },
-      variantLevelExpression(searchText, lang)
-    ]
+  if (postFilter) {
+    return {
+      "and": [
+        query,
+        postFilter
+      ]
+    }
+  } else {
+    return query
   }
 }
 
@@ -65,7 +63,7 @@ function _productFacetsFilter(facetsValue: Record<string, string[]>, productType
 export async function productSearchFacets(api: ByProjectKeyRequestBuilder, searchText: string, categoryId: string | null, lang: string, productTypeAttributes: ProductTypeAttributes, facetsValues: Record<string, string[]>) {
   const criteria = [
     categoryId ? { "exact": { field: "categoriesSubTree", value: categoryId } } : null,
-    searchText !== "" ? _productSearchText(searchText, lang) : null
+    searchText !== "" ? _productCriteria(searchText, lang, null) : null
   ].filter(e => e !== null);
 
   var query = undefined;
@@ -121,7 +119,7 @@ export async function productSearchFacets(api: ByProjectKeyRequestBuilder, searc
 export async function productSearch(api: ByProjectKeyRequestBuilder, searchText: string, categoryId: string | null, lang: string, productTypeAttributes: ProductTypeAttributes, facetsValues: Record<string, string[]>, offset: number, limit: number) {
   const criteria = [
     categoryId ? { "exact": { field: "categoriesSubTree", value: categoryId } } : null,
-    searchText !== "" ? _productSearchText(searchText, lang) : null
+    searchText !== "" ? _productCriteria(searchText, lang, null) : null
   ].filter(e => e !== null);
 
   var query = undefined;
@@ -131,14 +129,14 @@ export async function productSearch(api: ByProjectKeyRequestBuilder, searchText:
     query = criteria[0];
   }
 
-  const postFilterFacetsExpression = _productFacetsFilter(facetsValues, productTypeAttributes, lang, null);
 
   // note:
   // the variant level expressions need to be repeated to have correct results with respect to matching variants from the query part
-  const postFilter = postFilterFacetsExpression === null ? null : { "and": [postFilterFacetsExpression, variantLevelExpression(searchText, lang)] }
+  const postFilterCriteria = _productFacetsFilter(facetsValues, productTypeAttributes, lang, null);
+  const postFilter = searchText != "" ? _productCriteria(searchText, lang, postFilterCriteria) : postFilterCriteria;
 
   console.log("query", JSON.stringify(query, null, 2));
-  return await api.products().search().post({ body: { query, postFilter: postFilter || undefined, offset, limit, productProjectionParameters: {} } }).execute();
+  return await api.products().search().post({ body: { query, postFilter: postFilter || undefined, offset, limit, productProjectionParameters: {}, markMatchingVariants: true } }).execute();
 }
 
 export async function fetchCategories(api: ByProjectKeyRequestBuilder): Promise<Category[]> {

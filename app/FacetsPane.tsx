@@ -4,7 +4,19 @@ import { ProductTypeAttributes } from './utils';
 
 function FacetEntry(props: { facetName: string, facetLabel: string, facetOptions: Map<string, number>, facetSelection: string[], setFacetSelection: (facetName: string, selections: string[]) => void }) {
   const { facetOptions, facetSelection, facetLabel, facetName, setFacetSelection } = props;
-  const options = Array.from(facetOptions.entries()).map(([key, count]) => ({ label: `${key} (${count})`, value: key } as ComboboxItem));
+  var options = Array.from(facetOptions.entries()).map(([key, count]) => ({ label: `${key} (${count})`, value: key } as ComboboxItem));
+
+  if (facetName == "size") {
+    let optionsMap = new Map(options.map(o => [o.value, o.label]));
+    let sizes = ["XS", "S", "M", "L", "XL", "XXL"];
+    sizes.forEach(size => {
+      if (!optionsMap.has(size)) {
+        optionsMap.set(size, size + " (forced)")
+      }
+    });
+
+    options = Array.from(optionsMap.entries()).map(([value, label]) => ({ label, value } as ComboboxItem));
+  }
 
   return (
     <MultiSelect
