@@ -1,24 +1,52 @@
-import { Autocomplete, TextInput } from "@mantine/core";
-import { KeyboardEvent, useCallback, useState } from "react"; 
+import { Combobox, TextInput, useCombobox } from "@mantine/core";
+import { KeyboardEvent, useCallback, useState } from "react";
 
 function SearchBar(props: { suggestions: string[], onTriggerSearch: (value: string) => any, onKeyDown: (value: string) => any }) {
   const [query, setQuery] = useState<string>("");
+  const { suggestions, onTriggerSearch, onKeyDown } = props;
+  const [opened, setOpened] = useState(false);
+  const combobox = useCombobox({ opened: opened });
+
+  const onSelectOption = useCallback((newQuery: string) => {
+    setQuery(newQuery);
+    setOpened(false);
+    onTriggerSearch(newQuery);
+  }, [])
+
+  const options = suggestions.map((item) => (
+    <Combobox.Option value={item} key={item} onClick={() => onSelectOption(item)}>
+      {item}
+    </Combobox.Option>
+  ));
 
   const handleKeyboard = useCallback(function handleSearch(e: KeyboardEvent<HTMLInputElement>) {
     if (e.key === 'Enter') {
-      console.log('triggering search');
       if (query) {
-        props.onTriggerSearch(query);
+        onTriggerSearch(query);
+        setOpened(false);
       }
     } else {
-      console.log(e.currentTarget.value)
-      props.onKeyDown(e.currentTarget.value)
+      onKeyDown(e.currentTarget.value);
+      setOpened(true);
     }
-  }, [query])
+  }, [query, onTriggerSearch, onKeyDown]);
 
-  return (
-      <Autocomplete value={query} data={props.suggestions} onChange={(e) => setQuery(e)} onKeyUp={handleKeyboard} placeholder="Search..." />
-  )
+  const searchBar = <Combobox store={combobox}>
+    <Combobox.Target>
+      <TextInput
+        value={query}
+        placeholder="Search..."
+        onChange={(e) => setQuery(e.target.value)}
+        onKeyUp={handleKeyboard}
+      />
+    </Combobox.Target>
+
+    <Combobox.Dropdown>
+      <Combobox.Options>{options}</Combobox.Options>
+    </Combobox.Dropdown>
+  </Combobox>
+
+  return searchBar
 }
 
 export default SearchBar;

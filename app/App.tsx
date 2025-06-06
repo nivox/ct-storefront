@@ -9,7 +9,7 @@ import SearchBar from './SearchBar';
 import { ProjectContext, ProjectDetails } from './ProjectContext';
 import { ProductPagedSearchResponse } from '@commercetools/platform-sdk';
 import { useQuery } from '@tanstack/react-query';
-import { Alert, Autocomplete, Button, ComboboxItem, Container, Loader, Modal, MultiSelect, Select, SimpleGrid, Stack, Title } from '@mantine/core';
+import { Alert, Button, ComboboxItem, Container, Loader, Modal, MultiSelect, Select, SimpleGrid, Stack, Title } from '@mantine/core';
 import { fetchCategories, fetchLanguages, fetchProductTypes, productSearch, productSearchFacets, ProductSuggestions, productSuggestions } from './ct';
 
 export type FacetsMap = Map<string, Map<string, number>>
@@ -52,7 +52,7 @@ function App() {
   const productsQuery = useQuery({ queryKey: ['products', params], queryFn: getProducts, retry: false });
   const products = productsQuery.data;
 
-  const suggestionsQuery = useQuery({ queryKey: ['suggestions', params], queryFn: getSuggestions, retry: false });
+  const suggestionsQuery = useQuery({ queryKey: ['suggestions', suggestValue], queryFn: getSuggestions, retry: false });
   const suggestions = suggestionsQuery.data;
 
   const getFacets = async function(): Promise<FacetsMap> {
@@ -170,7 +170,7 @@ function App() {
           productsQuery.refetch()
         }} onKeyDown={(value: string) => { 
           setSuggestValue(value);
-          suggestionsQuery.refetch()}}
+        }}
         />
         <Select value={selectedLanguage} data={languageList.map(l => { return { "label": l, "value": l } as ComboboxItem })} onChange={setSelectedLanguage}>
         </Select>
