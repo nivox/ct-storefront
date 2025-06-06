@@ -1,4 +1,4 @@
-import { Anchor, Breadcrumbs } from '@mantine/core';
+import { Anchor, Breadcrumbs, Title } from '@mantine/core';
 import { CategoryTree } from './utils';
 
 function CategoryBar(props: { selectedCategoryId?: string, setSelectedCategoryId: (categoryId: string | null) => void, categoryTree: CategoryTree, lang: string }) {
@@ -22,10 +22,14 @@ function CategoryBar(props: { selectedCategoryId?: string, setSelectedCategoryId
 
   return (
     <>
+      {selectedCategoryId ? <Title order={2}>Current Category</Title> : <></>}
       <Breadcrumbs>
         {breadcrumbItems}
       </Breadcrumbs>
+      <Title order={3}>Categories</Title>
+      <Breadcrumbs separator="">
       {categories}
+      </Breadcrumbs>
     </>
   )
 }

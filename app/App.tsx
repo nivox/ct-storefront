@@ -28,7 +28,7 @@ function App() {
   const [suggestValue, setSuggestValue] = useState("");
 
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
-  const [page, setPage] = useState(0);
+  const [page, setPage] = useState(1);
   const [facetsSelection, setFacetsSelection] = useState<Record<string, string[]> | null>(null);
 
   const [showFacetConfig, setShowFacetConfig] = useState(false);
@@ -40,7 +40,7 @@ function App() {
       return Promise.reject("attributes not set")
     }
 
-    return ctx ? (await productSearch(ctx.projectClient, searchValue, selectedCategoryId, currentLang, productTypeAttributes, facetsSelection || {}, page * 10, 10)).body : Promise.reject("context not set")
+    return ctx ? (await productSearch(ctx.projectClient, searchValue, selectedCategoryId, currentLang, productTypeAttributes, facetsSelection || {}, (page - 1) * 10, 10)).body : Promise.reject("context not set")
   }
 
   const getSuggestions = useCallback(async function(): Promise<ProductSuggestions> {
@@ -175,7 +175,6 @@ function App() {
         <Select value={selectedLanguage} data={languageList.map(l => { return { "label": l, "value": l } as ComboboxItem })} onChange={setSelectedLanguage}>
         </Select>
       </SimpleGrid>
-      <Title order={2}>Categories</Title>
       {categoryTree ? <CategoryBar selectedCategoryId={selectedCategoryId || undefined} setSelectedCategoryId={setSelectedCategoryId} categoryTree={categoryTree} lang={currentLang} /> : <></>}
       <Title order={2}>Facets</Title>
       <Button onClick={() => setShowFacetConfig(true)}>config</Button>

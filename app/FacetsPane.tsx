@@ -1,4 +1,4 @@
-import { MultiSelect, ComboboxItem, Stack, Title } from '@mantine/core';
+import { MultiSelect, ComboboxItem, Title, SimpleGrid } from '@mantine/core';
 import { FacetsMap } from './App';
 import { ProductTypeAttributes } from './utils';
 
@@ -43,13 +43,10 @@ function FacetsPane(props: { facets: FacetsMap, facetsSelection: Record<string, 
 
   return (
     <>
-    <Title>Facets</Title>
-    <Stack gap={3}>
+    <Title order={3}>Filter</Title>
+    <SimpleGrid cols={4}>
       {facetEntries}
-    </Stack>
-    <pre>
-    {JSON.stringify(facetsMap)}
-    </pre>
+    </SimpleGrid>
   </>
   )
 }
