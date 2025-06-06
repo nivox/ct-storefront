@@ -9,7 +9,7 @@ function ProductEntry(props: { product: ProductSearchResult, lang: string }) {
   return (
     <Card withBorder>
       <Card.Section>
-        <Image src={images?.[0]?.url} mah={100} fallbackSrc="https://placehold.co/300x200?text=Placeholder" radius="md" />
+        <Image src={images?.[0]?.url} style={{height: "20vh", width: "100%", "objectFit": "scale-down"}} fallbackSrc="https://placehold.co/300x200?text=Placeholder" radius="md" />
       </Card.Section>
       <Card.Section>
         <Text>{productProjection?.name[lang]}</Text>
@@ -29,11 +29,12 @@ interface ProductsPaneProps {
 function ProductsPane({ searchResponse, page, lang, triggerPagination }: ProductsPaneProps) {
   const productEntries = searchResponse.results.map((p) => <ProductEntry key={p.id} product={p} lang={lang} />);
   const total = searchResponse.total;
-  const pagination = <Pagination value={page} onChange={triggerPagination} total={searchResponse.total} />
+  const totalPages = Math.ceil(total / 10);
+  const pagination = <Pagination value={page} onChange={triggerPagination} total={totalPages} />
 
   return (
     <Stack>
-      <Text>Found {total} products ({Math.ceil(total / 10)} pages)</Text>
+      <Text>Found {total} products ({totalPages} pages)</Text>
       {pagination}
       {productEntries}
       {pagination}
