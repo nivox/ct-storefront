@@ -1,20 +1,23 @@
-import { TextInput } from "@mantine/core";
-import { KeyboardEvent, useState } from "react"; 
+import { Autocomplete, TextInput } from "@mantine/core";
+import { KeyboardEvent, useCallback, useState } from "react"; 
 
-function SearchBar(props: { onTriggerSearch: (value: string) => any }) {
+function SearchBar(props: { suggestions: string[], onTriggerSearch: (value: string) => any, onKeyDown: (value: string) => any }) {
   const [query, setQuery] = useState<string>("");
 
-  function handleSearch(e: KeyboardEvent) {
+  const handleKeyboard = useCallback(function handleSearch(e: KeyboardEvent<HTMLInputElement>) {
     if (e.key === 'Enter') {
       console.log('triggering search');
       if (query) {
         props.onTriggerSearch(query);
       }
+    } else {
+      console.log(e.currentTarget.value)
+      props.onKeyDown(e.currentTarget.value)
     }
-  }
+  }, [query])
 
   return (
-        <TextInput value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={handleSearch} placeholder="Search..." />
+      <Autocomplete value={query} data={props.suggestions} onChange={(e) => setQuery(e)} onKeyUp={handleKeyboard} placeholder="Search..." />
   )
 }
 
