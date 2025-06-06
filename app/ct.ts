@@ -1,5 +1,6 @@
-import { SearchOrExpression, SearchFullTextExpression, SearchExactExpression, SearchCompoundExpression, ByProjectKeyRequestBuilder, ProductSearchFacetDistinctExpression, _ProductSearchFacetResult, ProductSearchFacetResultBucket, Category, ProductType, SearchQueryExpression, SearchQuery, SearchPrefixExpression } from "@commercetools/platform-sdk";
+import { SearchFullTextExpression, SearchCompoundExpression, ByProjectKeyRequestBuilder, ProductSearchFacetDistinctExpression, _ProductSearchFacetResult, ProductSearchFacetResultBucket, Category, ProductType, SearchQuery, SearchPrefixExpression } from "@commercetools/platform-sdk";
 import { ProductAttribute, ProductTypeAttributes } from "./utils";
+import { ProjectDetails } from "./ProjectContext";
 
 function _productCriteria(searchText: string, lang: string, postFilter: SearchQuery | null): SearchQuery {
   let query = {
@@ -137,6 +138,41 @@ export async function productSearch(api: ByProjectKeyRequestBuilder, searchText:
 
   console.log("query", JSON.stringify(query, null, 2));
   return await api.products().search().post({ body: { query, postFilter: postFilter || undefined, offset, limit, productProjectionParameters: {}, markMatchingVariants: true } }).execute();
+}
+
+export interface ProductSuggestions {
+  suggestions: string[]
+}
+
+export async function productSuggestions(projectContext: ProjectDetails, searchText: string, lang: string): Promise<ProductSuggestions> {
+  const requestBody = {
+    field: `name.${lang}`,
+    query: searchText
+  };
+
+  const url = `${projectContext.apiEndpoint}/${projectContext.projectKey}/products/search/suggest`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `bearer ${projectContext.token}`
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Error calling product suggestions endpoint: ${response.status} ${response.statusText}`, errorText);
+      throw new Error(`API request failed with status ${response.status}: ${errorText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error calling product suggestions endpoint:", error);
+    throw error;
+  }
 }
 
 export async function fetchCategories(api: ByProjectKeyRequestBuilder): Promise<Category[]> {
