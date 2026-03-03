@@ -1,6 +1,6 @@
-import { SearchFullTextExpression, SearchCompoundExpression, ByProjectKeyRequestBuilder, ProductSearchFacetDistinctExpression, _ProductSearchFacetResult, ProductSearchFacetResultBucket, Category, ProductType, SearchQuery, SearchPrefixExpression, SearchExactExpression } from "@commercetools/platform-sdk";
+import { SearchFullTextExpression, SearchCompoundExpression, ByProjectKeyRequestBuilder, ProductSearchFacetDistinctExpression, ProductSearchFacetResultBucket, Category, ProductType, SearchQuery, SearchPrefixExpression } from "@commercetools/platform-sdk";
 import { ProductAttribute, ProductTypeAttributes } from "./utils";
-import { ProjectDetails } from "./ProjectContext";
+import type { ProjectDetails } from "./projectContext";
 
 export type SearchMode = "lexical" | "semantic";
 
@@ -8,10 +8,8 @@ function _productCriteria(searchText: string, lang: string, postFilter: SearchQu
   let query: SearchQuery;
 
   if (mode === "semantic") {
-    // Semantic mode: only use semanticRepresentation field
     query = {"fullText": { field: "semanticRepresentation", value: searchText, language: lang} } as SearchFullTextExpression;
   } else {
-    // Lexical mode: all fields except semanticRepresentation
     query = {
       "or": [
         { "fullText": { field: "name", value: searchText, language: lang } } as SearchFullTextExpression,
@@ -140,9 +138,6 @@ export async function productSearch(api: ByProjectKeyRequestBuilder, searchText:
     query = criteria[0];
   }
 
-
-  // note:
-  // the variant level expressions need to be repeated to have correct results with respect to matching variants from the query part
   const postFilterCriteria = _productFacetsFilter(facetsValues, productTypeAttributes, lang, null);
   const postFilter = searchText != "" ? _productCriteria(searchText, lang, postFilterCriteria, searchMode) : postFilterCriteria;
 
@@ -186,19 +181,16 @@ export async function productSuggestions(projectContext: ProjectDetails, searchT
 }
 
 export async function fetchCategories(api: ByProjectKeyRequestBuilder): Promise<Category[]> {
-  // we should iterate over the pagination
   let response = await api.categories().get().execute();
   return response.body.results
 }
 
 export async function fetchProductTypes(api: ByProjectKeyRequestBuilder): Promise<ProductType[]> {
-  // we should iterate over the pagination
   let response = await api.productTypes().get().execute();
   return response.body.results
 }
 
 export async function fetchLanguages(api: ByProjectKeyRequestBuilder): Promise<string[]> {
-  // we should iterate over the pagination
   let response = await api.get().execute();
   return response.body.languages
 }

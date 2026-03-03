@@ -60,7 +60,6 @@ const ignoredAttributeTypes = ["date", "datetime", "reference", "set"]
 
 const validAttribute = (a: AttributeDefinition) => a.isSearchable === true && !ignoredAttributeTypes.find(typeName => typeName === a.type.name)
 
-
 export interface ProductAttribute {
   definition: AttributeDefinition,
   ignored: boolean
@@ -101,4 +100,3 @@ export class ProductTypeAttributes {
     this.attributeMap[attributeName].ignored = ignored;
   }
 }
-
