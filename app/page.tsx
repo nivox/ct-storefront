@@ -1,29 +1,13 @@
-'use client';
+import HomePage from "./HomePage";
 
-import App from "./App";
-import { useState } from "react";
-import { ProjectContext, ProjectDetails } from "./ProjectContext";
-import Login from "./Login";
-import { MantineProvider } from "@mantine/core";
+export default function Page() {
+  const envConfig = {
+    projectKey: process.env.CTP_PROJECT_KEY,
+    clientId: process.env.CTP_CLIENT_ID,
+    clientSecret: process.env.CTP_CLIENT_SECRET,
+    apiUrl: process.env.CTP_API_URL,
+    authUrl: process.env.CTP_AUTH_URL,
+  };
 
-import '@mantine/core/styles.css';
-
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-
-const queryClient = new QueryClient()
-
-export default function Home() {
-  const [projectDetails, setProjectDetails] = useState<ProjectDetails | null>(null);
-
-  return (
-    <QueryClientProvider client={queryClient}>
-      <ProjectContext.Provider value={projectDetails}>
-        <MantineProvider>
-          <div className="app">
-            {projectDetails ? <App /> : <Login setProjectDetails={setProjectDetails} />}
-          </div>
-        </MantineProvider>
-      </ProjectContext.Provider>
-    </QueryClientProvider>
-  )
+  return <HomePage envConfig={envConfig} />;
 }

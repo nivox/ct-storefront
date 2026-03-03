@@ -1,18 +1,23 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useCookies } from "react-cookie";
 import { apiEndpointDefault, authEndpointDefault, ProjectDetails } from "./ProjectContext";
 import commercetools, { getAccessToken } from "./CommercetoolsClient";
 import { ByProjectKeyRequestBuilder } from "@commercetools/platform-sdk";
 import { Button, PasswordInput, Stack, TextInput } from "@mantine/core";
+import { EnvConfig } from "./HomePage";
 
-export default function Login(props: { setProjectDetails: (details: ProjectDetails) => void }) {
-  const { setProjectDetails } = props;
+export default function Login(props: { setProjectDetails: (details: ProjectDetails) => void; envConfig: EnvConfig }) {
+  const { setProjectDetails, envConfig } = props;
   const [cookies, setCookies] = useCookies(["config"]);
-  const [projectKey, setProjectKey] = useState(cookies.config ? cookies.config.projectKey : "");
-  const [clientId, setClientId] = useState(cookies.config ? cookies.config.clientId : "");
-  const [clientSecret, setClientSecret] = useState(cookies.config ? cookies.config.clientSecret : "");
-  const [apiEndpoint, setApiEndpoint] = useState(cookies.config ? cookies.config.apiEndpoint : apiEndpointDefault);
-  const [authEndpoint, setAuthEndpoint] = useState(cookies.config ? cookies.config.authEndpoint : authEndpointDefault);
+
+  // Priority: cookies > env vars > defaults
+  const [projectKey, setProjectKey] = useState(cookies.config?.projectKey || envConfig.projectKey || "");
+  const [clientId, setClientId] = useState(cookies.config?.clientId || envConfig.clientId || "");
+  const [clientSecret, setClientSecret] = useState(cookies.config?.clientSecret || envConfig.clientSecret || "");
+  const [apiEndpoint, setApiEndpoint] = useState(cookies.config?.apiEndpoint || envConfig.apiUrl || apiEndpointDefault);
+  const [authEndpoint, setAuthEndpoint] = useState(cookies.config?.authEndpoint || envConfig.authUrl || authEndpointDefault);
+
+  const autoLoginAttempted = useRef(false);
 
   console.log(cookies.config);
 
@@ -32,6 +37,19 @@ export default function Login(props: { setProjectDetails: (details: ProjectDetai
       projectClient
     })
   }, [projectKey, clientId, clientSecret, apiEndpoint, authEndpoint, setProjectDetails, setCookies])
+
+  // Auto-login when all env variables are provided
+  useEffect(() => {
+    if (
+      !autoLoginAttempted.current &&
+      envConfig.projectKey &&
+      envConfig.clientId &&
+      envConfig.clientSecret
+    ) {
+      autoLoginAttempted.current = true;
+      login();
+    }
+  }, [envConfig, login]);
 
   return (
     <Stack>
