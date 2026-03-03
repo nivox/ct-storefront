@@ -1,17 +1,27 @@
-import { SearchFullTextExpression, SearchCompoundExpression, ByProjectKeyRequestBuilder, ProductSearchFacetDistinctExpression, _ProductSearchFacetResult, ProductSearchFacetResultBucket, Category, ProductType, SearchQuery, SearchPrefixExpression } from "@commercetools/platform-sdk";
+import { SearchFullTextExpression, SearchCompoundExpression, ByProjectKeyRequestBuilder, ProductSearchFacetDistinctExpression, _ProductSearchFacetResult, ProductSearchFacetResultBucket, Category, ProductType, SearchQuery, SearchPrefixExpression, SearchExactExpression } from "@commercetools/platform-sdk";
 import { ProductAttribute, ProductTypeAttributes } from "./utils";
 import { ProjectDetails } from "./ProjectContext";
 
-function _productCriteria(searchText: string, lang: string, postFilter: SearchQuery | null): SearchQuery {
-  let query = {
-    "or": [
-      { "fullText": { field: "name", value: searchText, language: lang, mustMatch: 'any' } } as SearchFullTextExpression,
-      { "fullText": { field: "description", value: searchText, language: lang, mustMatch: 'any' } } as SearchFullTextExpression,
-      { "fullText": { field: "slug", value: searchText, language: lang, mustMatch: 'any' } } as SearchFullTextExpression,
-      { "prefix": { field: "key", value: searchText } } as SearchPrefixExpression,
-      { "prefix": { field: "variants.key", value: searchText } } as SearchPrefixExpression,
-      { "prefix": { field: "variants.sku", value: searchText } } as SearchPrefixExpression,
-    ]
+export type SearchMode = "lexical" | "semantic";
+
+function _productCriteria(searchText: string, lang: string, postFilter: SearchQuery | null, mode: SearchMode = "semantic"): SearchQuery {
+  let query: SearchQuery;
+
+  if (mode === "semantic") {
+    // Semantic mode: only use semanticRepresentation field
+    query = {"fullText": { field: "semanticRepresentation", value: searchText, language: lang} } as SearchFullTextExpression;
+  } else {
+    // Lexical mode: all fields except semanticRepresentation
+    query = {
+      "or": [
+        { "fullText": { field: "name", value: searchText, language: lang } } as SearchFullTextExpression,
+        { "fullText": { field: "description", value: searchText, language: lang } } as SearchFullTextExpression,
+        { "fullText": { field: "slug", value: searchText, language: lang } } as SearchFullTextExpression,
+        { "prefix": { field: "key", value: searchText } } as SearchPrefixExpression,
+        { "prefix": { field: "variants.key", value: searchText } } as SearchPrefixExpression,
+        { "prefix": { field: "variants.sku", value: searchText } } as SearchPrefixExpression,
+      ]
+    };
   }
 
   if (postFilter) {
@@ -61,10 +71,10 @@ function _productFacetsFilter(facetsValue: Record<string, string[]>, productType
   };
 }
 
-export async function productSearchFacets(api: ByProjectKeyRequestBuilder, searchText: string, categoryId: string | null, lang: string, productTypeAttributes: ProductTypeAttributes, facetsValues: Record<string, string[]>) {
+export async function productSearchFacets(api: ByProjectKeyRequestBuilder, searchText: string, categoryId: string | null, lang: string, productTypeAttributes: ProductTypeAttributes, facetsValues: Record<string, string[]>, searchMode: SearchMode = "semantic") {
   const criteria = [
     categoryId ? { "exact": { field: "categoriesSubTree", value: categoryId } } : null,
-    searchText !== "" ? _productCriteria(searchText, lang, null) : null
+    searchText !== "" ? _productCriteria(searchText, lang, null, searchMode) : null
   ].filter(e => e !== null);
 
   var query = undefined;
@@ -117,10 +127,10 @@ export async function productSearchFacets(api: ByProjectKeyRequestBuilder, searc
   return facetsMap;
 }
 
-export async function productSearch(api: ByProjectKeyRequestBuilder, searchText: string, categoryId: string | null, lang: string, productTypeAttributes: ProductTypeAttributes, facetsValues: Record<string, string[]>, offset: number, limit: number) {
+export async function productSearch(api: ByProjectKeyRequestBuilder, searchText: string, categoryId: string | null, lang: string, productTypeAttributes: ProductTypeAttributes, facetsValues: Record<string, string[]>, offset: number, limit: number, searchMode: SearchMode = "semantic") {
   const criteria = [
     categoryId ? { "exact": { field: "categoriesSubTree", value: categoryId } } : null,
-    searchText !== "" ? _productCriteria(searchText, lang, null) : null
+    searchText !== "" ? _productCriteria(searchText, lang, null, searchMode) : null
   ].filter(e => e !== null);
 
   var query = undefined;
@@ -134,7 +144,7 @@ export async function productSearch(api: ByProjectKeyRequestBuilder, searchText:
   // note:
   // the variant level expressions need to be repeated to have correct results with respect to matching variants from the query part
   const postFilterCriteria = _productFacetsFilter(facetsValues, productTypeAttributes, lang, null);
-  const postFilter = searchText != "" ? _productCriteria(searchText, lang, postFilterCriteria) : postFilterCriteria;
+  const postFilter = searchText != "" ? _productCriteria(searchText, lang, postFilterCriteria, searchMode) : postFilterCriteria;
 
   console.log("query", JSON.stringify(query, null, 2));
   return await api.products().search().post({ body: { query, postFilter: postFilter || undefined, offset, limit, productProjectionParameters: {}, markMatchingVariants: true } }).execute();

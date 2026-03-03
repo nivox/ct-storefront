@@ -34,6 +34,7 @@ function SearchBar(props: { suggestions: string[], onTriggerSearch: (value: stri
   const searchBar = <Combobox store={combobox}>
     <Combobox.Target>
       <TextInput
+        label=" "
         value={query}
         placeholder="Search..."
         onChange={(e) => setQuery(e.target.value)}

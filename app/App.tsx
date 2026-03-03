@@ -9,8 +9,8 @@ import SearchBar from './SearchBar';
 import { ProjectContext, ProjectDetails } from './ProjectContext';
 import { ProductPagedSearchResponse } from '@commercetools/platform-sdk';
 import { useQuery } from '@tanstack/react-query';
-import { Alert, Button, ComboboxItem, Container, Loader, Modal, MultiSelect, Select, SimpleGrid, Stack, Title } from '@mantine/core';
-import { fetchCategories, fetchLanguages, fetchProductTypes, productSearch, productSearchFacets, ProductSuggestions, productSuggestions } from './ct';
+import { Alert, Button, ComboboxItem, Container, Grid, Loader, Modal, MultiSelect, Select, SimpleGrid, Stack, Title } from '@mantine/core';
+import { fetchCategories, fetchLanguages, fetchProductTypes, productSearch, productSearchFacets, ProductSuggestions, productSuggestions, SearchMode } from './ct';
 
 export type FacetsMap = Map<string, Map<string, number>>
 
@@ -23,6 +23,7 @@ function App() {
   const [productTypeAttributes, setProductTypeAttributes] = useState<ProductTypeAttributes>(new ProductTypeAttributes([]));
   const [languageList, setLanguageList] = useState<string[]>([]);
   const [selectedLanguage, setSelectedLanguage] = useState<string | null>(languageList[0]);
+  const [searchMode, setSearchMode] = useState<SearchMode>("semantic");
 
   const [searchValue, setSearchValue] = useState("");
   const [suggestValue, setSuggestValue] = useState("");
@@ -40,14 +41,14 @@ function App() {
       return Promise.reject("attributes not set")
     }
 
-    return ctx ? (await productSearch(ctx.projectClient, searchValue, selectedCategoryId, currentLang, productTypeAttributes, facetsSelection || {}, (page - 1) * 10, 10)).body : Promise.reject("context not set")
+    return ctx ? (await productSearch(ctx.projectClient, searchValue, selectedCategoryId, currentLang, productTypeAttributes, facetsSelection || {}, (page - 1) * 10, 10, searchMode)).body : Promise.reject("context not set")
   }
 
   const getSuggestions = useCallback(async function(): Promise<ProductSuggestions> {
     return ctx ? await productSuggestions(ctx, suggestValue, currentLang) : Promise.reject("context not set")
   }, [suggestValue])
 
-  const params = { page, searchValue, selectedCategoryId, selectedLanguage, facetsSelection };
+  const params = { page, searchValue, selectedCategoryId, selectedLanguage, facetsSelection, searchMode };
 
   const productsQuery = useQuery({ queryKey: ['products', params], queryFn: getProducts, retry: false });
   const products = productsQuery.data;
@@ -56,7 +57,7 @@ function App() {
   const suggestions = suggestionsQuery.data;
 
   const getFacets = async function(): Promise<FacetsMap> {
-    return ctx ? await productSearchFacets(ctx.projectClient, params.searchValue, params.selectedCategoryId, currentLang, productTypeAttributes || {}, params.facetsSelection || {}) : Promise.reject("context not set");
+    return ctx ? await productSearchFacets(ctx.projectClient, params.searchValue, params.selectedCategoryId, currentLang, productTypeAttributes || {}, params.facetsSelection || {}, params.searchMode) : Promise.reject("context not set");
   }
 
   const facetsQuery = useQuery({ queryKey: ['facets', params], queryFn: getFacets, retry: false })
@@ -164,17 +165,36 @@ function App() {
     <Stack>
       {errorAlert}
       <Title order={1}>{ctx.projectKey} storefront</Title>
-      <SimpleGrid cols={2}>
-        <SearchBar suggestions={suggestions?.suggestions || []} onTriggerSearch={(value: string) => {
-          setSearchValue(value);
-          productsQuery.refetch()
-        }} onKeyDown={(value: string) => { 
-          setSuggestValue(value);
-        }}
-        />
-        <Select value={selectedLanguage} data={languageList.map(l => { return { "label": l, "value": l } as ComboboxItem })} onChange={setSelectedLanguage}>
-        </Select>
-      </SimpleGrid>
+      <Grid>
+        <Grid.Col span={6}>
+          <SearchBar suggestions={suggestions?.suggestions || []} onTriggerSearch={(value: string) => {
+            setSearchValue(value);
+            productsQuery.refetch()
+          }} onKeyDown={(value: string) => { 
+            setSuggestValue(value);
+          }}
+          />
+        </Grid.Col>
+        <Grid.Col span={3}>
+          <Select 
+            label="Language" 
+            value={selectedLanguage} 
+            data={languageList.map(l => { return { "label": l, "value": l } as ComboboxItem })} 
+            onChange={setSelectedLanguage}
+          />
+        </Grid.Col>
+        <Grid.Col span={3}>
+          <Select 
+            label="Search Mode" 
+            value={searchMode} 
+            data={[
+              { label: "Semantic", value: "semantic" },
+              { label: "Lexical", value: "lexical" }
+            ]} 
+            onChange={(value) => setSearchMode(value as SearchMode)}
+          />
+        </Grid.Col>
+      </Grid>
       {categoryTree ? <CategoryBar selectedCategoryId={selectedCategoryId || undefined} setSelectedCategoryId={setSelectedCategoryId} categoryTree={categoryTree} lang={currentLang} /> : <></>}
       <Title order={2}>Facets</Title>
       <Button onClick={() => setShowFacetConfig(true)}>config</Button>
