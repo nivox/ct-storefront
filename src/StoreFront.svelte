@@ -272,8 +272,6 @@
 
   <!-- Results -->
   <div class="mt-6">
-    <h2 class="mb-2 text-xl font-semibold text-gray-900">Results</h2>
-
     {#if productsQuery.isError}
       <div class="mb-2 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
         {productsQuery.error?.message}

@@ -95,11 +95,12 @@
 {/snippet}
 
 <div class="flex flex-col gap-4">
-  <p class="text-sm text-gray-600">Found {total} products ({totalPages} pages)</p>
+  {#if total === 0}
+    <p class="text-sm text-gray-500 italic">No results found. Try adjusting your search terms or filters.</p>
+  {:else}
+    <p class="text-sm text-gray-600">Found {total} products ({totalPages} pages)</p>
 
-  {@render pagination()}
-
-  <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
     {#each searchResponse.results as product (product.id)}
       {@const expanded = expandedIds.has(product.id)}
       {@const attrs = getProductAttributes(product)}
@@ -159,7 +160,8 @@
         {/if}
       </div>
     {/each}
-  </div>
+    </div>
 
-  {@render pagination()}
+    {@render pagination()}
+  {/if}
 </div>
