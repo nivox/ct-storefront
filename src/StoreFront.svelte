@@ -19,7 +19,8 @@
   let { projectDetails: ctx }: { projectDetails: ProjectDetails } = $props();
 
   // --- State ---
-  let initDone = false;
+  let initStarted = false;
+  let initReady = $state(false);
   let categoryTree = $state<CategoryTree | null>(null);
   let productTypeAttributes = $state<ProductTypeAttributes>(new ProductTypeAttributes([]));
   let languageList = $state<string[]>([]);
@@ -51,8 +52,8 @@
 
   // --- Init ---
   $effect(() => {
-    if (ctx && !initDone) {
-      initDone = true;
+    if (ctx && !initStarted) {
+      initStarted = true;
       initApp();
     }
   });
@@ -84,6 +85,8 @@
         authEndpoint: ctx.authEndpoint,
         ignoredAttributes: cookieConfig?.ignoredAttributes || {}
       });
+
+      initReady = true;
     } catch (e) {
       error = 'Init error: ' + (e as Error).message;
     }
@@ -94,12 +97,12 @@
   const productsQuery = createQuery(() => ({
     queryKey: ['products', { page, searchValue, selectedCategoryId, selectedLanguage, facetsSelection, searchMode }] as const,
     queryFn: async (): Promise<ProductPagedSearchResponse> => {
-      if (!productTypeAttributes) return Promise.reject('attributes not set');
       return (await productSearch(
         ctx.projectClient, searchValue, selectedCategoryId, currentLang,
         productTypeAttributes, facetsSelection || {}, (page - 1) * 10, 10, searchMode
       )).body;
     },
+    enabled: initReady,
     retry: false,
   }));
 
@@ -108,6 +111,7 @@
     queryFn: async (): Promise<ProductSuggestions> => {
       return productSuggestions(ctx, suggestValue, currentLang);
     },
+    enabled: initReady,
     retry: false,
   }));
 
@@ -119,6 +123,7 @@
         productTypeAttributes, facetsSelection || {}, searchMode
       );
     },
+    enabled: initReady && productTypeAttributes.getAllAttributes().length > 0,
     retry: false,
   }));
 
@@ -223,35 +228,37 @@
     <CategoryBar {selectedCategoryId} setSelectedCategoryId={(id) => (selectedCategoryId = id)} {categoryTree} lang={currentLang} />
   {/if}
 
-  <!-- Facets -->
-  <div class="mt-6">
-    <div class="mb-2 flex items-center gap-3">
-      <h2 class="text-xl font-semibold text-gray-900">Facets</h2>
-      <button onclick={() => (showFacetConfig = true)}
-        class="rounded border border-gray-300 px-3 py-1 text-sm text-gray-700 hover:bg-gray-100">
-        Config
-      </button>
-    </div>
-
-    {#if facetsQuery.isError}
-      <div class="mb-2 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-        {facetsQuery.error?.message}
+  <!-- Facets (only shown when facetable attributes exist) -->
+  {#if productTypeAttributes.getAllAttributes().length > 0}
+    <div class="mt-6">
+      <div class="mb-2 flex items-center gap-3">
+        <h2 class="text-xl font-semibold text-gray-900">Facets</h2>
+        <button onclick={() => (showFacetConfig = true)}
+          class="rounded border border-gray-300 px-3 py-1 text-sm text-gray-700 hover:bg-gray-100">
+          Config
+        </button>
       </div>
-    {/if}
 
-    {#if productTypeAttributes && facetsQuery.data}
-      <FacetsPane
-        facets={facetsQuery.data}
-        {productTypeAttributes}
-        lang={currentLang}
-        facetsSelection={facetsSelection || {}}
-        setFacetSelection={setSingleFacetSelection}
-      />
-    {/if}
-  </div>
+      {#if facetsQuery.isError}
+        <div class="mb-2 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          {facetsQuery.error?.message}
+        </div>
+      {/if}
+
+      {#if facetsQuery.data}
+        <FacetsPane
+          facets={facetsQuery.data}
+          {productTypeAttributes}
+          lang={currentLang}
+          facetsSelection={facetsSelection || {}}
+          setFacetSelection={setSingleFacetSelection}
+        />
+      {/if}
+    </div>
+  {/if}
 
   <!-- Facet config modal -->
-  {#if showFacetConfig}
+  {#if showFacetConfig && productTypeAttributes.getAllAttributes().length > 0}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <!-- svelte-ignore a11y_interactive_supports_focus -->
     <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"

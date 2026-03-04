@@ -19,6 +19,7 @@
     "@types/js-cookie": "^3.0.6",
     "@types/node": "^20",
     "autoprefixer": "^10.4.20",
+    "dotenv": "^17.3.1",
     "postcss": "^8",
     "svelte": "^5.0.0",
     "svelte-check": "^4.0.0",

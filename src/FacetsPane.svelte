@@ -64,6 +64,9 @@
 </script>
 
 <h3 class="mb-2 text-base font-semibold text-gray-900">Filter</h3>
+{#if facetEntries.length === 0}
+  <p class="text-sm text-gray-500 italic">No filters available (product attributes are not indexed for faceting in this dataset)</p>
+{:else}
 <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
   {#each facetEntries as facet}
     <div class="relative">
@@ -104,6 +107,7 @@
     </div>
   {/each}
 </div>
+{/if}
 
 <!-- Close dropdown when clicking outside -->
 <svelte:window onclick={(e) => {

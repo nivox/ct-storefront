@@ -1,5 +1,5 @@
 import { SearchFullTextExpression, SearchCompoundExpression, ByProjectKeyRequestBuilder, ProductSearchFacetDistinctExpression, ProductSearchFacetResultBucket, Category, ProductType, SearchQuery, SearchPrefixExpression } from "@commercetools/platform-sdk";
-import { ProductAttribute, ProductTypeAttributes } from "./utils";
+import { ProductAttribute, ProductTypeAttributes, effectiveTypeName } from "./utils";
 import type { ProjectDetails } from "./projectContext";
 
 export type SearchMode = "lexical" | "semantic";
@@ -46,17 +46,18 @@ function _productFacetsFilter(facetsValue: Record<string, string[]>, productType
 
   const facetExpressions = validFacets.map(([facetName, values]) => {
     console.log(`Processing facet ${facetName} with values ${values}`)
-    const atype = productTypeAttributes.getAttribute(facetName).definition.type.name;
+    const attrDef = productTypeAttributes.getAttribute(facetName).definition;
+    const etype = effectiveTypeName(attrDef.type);
     let exprLang = null;
-    if (atype === "ltext" || atype === "lenum") exprLang = lang;
+    if (etype === "ltext" || etype === "lenum") exprLang = lang;
 
     let field = "variants.attributes." + facetName;
-    if (atype === "enum" || atype === "lenum") {
+    if (etype === "enum" || etype === "lenum") {
       field = `variants.attributes.${facetName}.label`;
     }
 
     const attributeMatches = values.map(v => {
-      return { "exact": { field: field, value: v, language: exprLang, fieldType: atype } }
+      return { "exact": { field: field, value: v, language: exprLang, fieldType: etype } }
     })
 
     return values.length == 1 ? attributeMatches[0] : {
@@ -101,13 +102,17 @@ export async function productSearchFacets(api: ByProjectKeyRequestBuilder, searc
     attributes.push(...productTypeAttributes.getAttributes(pt))
   )
 
+  const localizedTypes = new Set(['ltext', 'lenum']);
+
   const facets = attributes.map(a => {
+    const etype = effectiveTypeName(a.definition.type);
     let field = "variants.attributes." + a.definition.name;
-    if (a.definition.type.name === "enum" || a.definition.type.name === "lenum") {
+    if (etype === "enum" || etype === "lenum") {
       field = `variants.attributes.${a.definition.name}.label`;
     }
     const filter = _productFacetsFilter(facetsValues, productTypeAttributes, lang, a.definition.name);
-    return { "distinct": { name: a.definition.name, field: field, filter, language: lang, fieldType: a.definition.type.name } } as ProductSearchFacetDistinctExpression
+    const isLocalized = localizedTypes.has(etype);
+    return { "distinct": { name: a.definition.name, field: field, filter, language: isLocalized ? lang : undefined, fieldType: etype } } as ProductSearchFacetDistinctExpression
   });
 
   const facetsResponse = await api.products().search().post({ body: { query, postFilter: postFilter || undefined, limit: 0, offset: 0, facets } }).execute();
@@ -181,13 +186,35 @@ export async function productSuggestions(projectContext: ProjectDetails, searchT
 }
 
 export async function fetchCategories(api: ByProjectKeyRequestBuilder): Promise<Category[]> {
-  let response = await api.categories().get().execute();
-  return response.body.results
+  const limit = 500;
+  let offset = 0;
+  let allResults: Category[] = [];
+  let total = Infinity;
+
+  while (offset < total) {
+    const response = await api.categories().get({ queryArgs: { limit, offset } }).execute();
+    allResults.push(...response.body.results);
+    total = response.body.total ?? response.body.results.length;
+    offset += response.body.results.length;
+    if (response.body.results.length < limit) break;
+  }
+  return allResults;
 }
 
 export async function fetchProductTypes(api: ByProjectKeyRequestBuilder): Promise<ProductType[]> {
-  let response = await api.productTypes().get().execute();
-  return response.body.results
+  const limit = 500;
+  let offset = 0;
+  let allResults: ProductType[] = [];
+  let total = Infinity;
+
+  while (offset < total) {
+    const response = await api.productTypes().get({ queryArgs: { limit, offset } }).execute();
+    allResults.push(...response.body.results);
+    total = response.body.total ?? response.body.results.length;
+    offset += response.body.results.length;
+    if (response.body.results.length < limit) break;
+  }
+  return allResults;
 }
 
 export async function fetchLanguages(api: ByProjectKeyRequestBuilder): Promise<string[]> {
