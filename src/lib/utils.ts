@@ -1,4 +1,4 @@
-import { AttributeDefinition, ProductType } from "@commercetools/platform-sdk";
+import { AttributeDefinition, AttributeType, ProductType } from "@commercetools/platform-sdk";
 
 interface CategoryReference {
   id: string
@@ -56,10 +56,23 @@ export class CategoryTree {
   }
 }
 
-const ignoredAttributeTypes = ["date", "datetime", "reference", "set"]
+const ignoredBaseTypes = new Set(["date", "datetime", "reference"]);
 
-const validAttribute = (a: AttributeDefinition) => a.isSearchable === true && !ignoredAttributeTypes.find(typeName => typeName === a.type.name)
+/**
+ * For set types, returns the element type name; otherwise returns the type name directly.
+ */
+export function effectiveTypeName(type: AttributeType): string {
+  if (type.name === 'set') {
+    return (type as { name: 'set'; elementType: AttributeType }).elementType.name;
+  }
+  return type.name;
+}
 
+const validAttribute = (a: AttributeDefinition) => {
+  if (!a.isSearchable) return false;
+  const etype = effectiveTypeName(a.type);
+  return !ignoredBaseTypes.has(etype);
+}
 
 export interface ProductAttribute {
   definition: AttributeDefinition,
@@ -86,7 +99,7 @@ export class ProductTypeAttributes {
   }
 
   getAttributes(productTypeId: string) {
-    return this.productTypeAttributeMap[productTypeId].filter(a => !a.ignored) || [];
+    return (this.productTypeAttributeMap[productTypeId] || []).filter(a => !a.ignored);
   };
 
   getAttribute(attributeName: string) {
@@ -101,4 +114,3 @@ export class ProductTypeAttributes {
     this.attributeMap[attributeName].ignored = ignored;
   }
 }
-
