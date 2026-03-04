@@ -12,7 +12,9 @@
   import SearchBar from './SearchBar.svelte';
   import FacetsPane from './FacetsPane.svelte';
   import ProductsPane from './ProductsPane.svelte';
+  import SettingsPanel from './Settings.svelte';
   import Cookies from 'js-cookie';
+  import { getSettings, getIgnoredAttributes, setIgnoredAttributes } from './lib/settings.svelte';
 
   export type FacetsMap = Map<string, Map<string, number>>;
 
@@ -31,8 +33,10 @@
   let selectedCategoryId = $state<string | null>(null);
   let page = $state(1);
   let facetsSelection = $state<Record<string, string[]> | null>(null);
-  let showFacetConfig = $state(false);
+  let showSettings = $state(false);
   let error = $state<string | null>(null);
+
+  const settings = getSettings();
 
   let currentLang = $derived(selectedLanguage || 'en');
 
@@ -65,10 +69,15 @@
       const langs = await fetchLanguages(ctx.projectClient);
 
       const cookieConfig = getCookieConfig();
-      if (cookieConfig?.ignoredAttributes) {
-        (cookieConfig.ignoredAttributes[ctx.projectKey] || []).forEach((a: string) =>
-          attrs.setIgnoreAttribute(a, true)
-        );
+
+      // Apply ignored attributes from settings store (preferred) or legacy cookie
+      const settingsIgnored = getIgnoredAttributes(ctx.projectKey);
+      const legacyIgnored = cookieConfig?.ignoredAttributes?.[ctx.projectKey] || [];
+      const ignoredList = settingsIgnored.length > 0 ? settingsIgnored : legacyIgnored;
+      ignoredList.forEach((a: string) => attrs.setIgnoreAttribute(a, true));
+      if (legacyIgnored.length > 0 && settingsIgnored.length === 0) {
+        // migrate legacy ignored attrs into new settings store
+        setIgnoredAttributes(ctx.projectKey, legacyIgnored);
       }
 
       categoryTree = cats;
@@ -111,7 +120,7 @@
     queryFn: async (): Promise<ProductSuggestions> => {
       return productSuggestions(ctx, suggestValue, currentLang);
     },
-    enabled: initReady,
+    enabled: initReady && settings.suggestionsEnabled,
     retry: false,
   }));
 
@@ -141,33 +150,20 @@
     }
   }
 
-  // --- Ignore attributes ---
-  let ignoredAttributeNames = $derived(
-    productTypeAttributes.getAllAttributes().filter(a => a.ignored).map(a => a.definition.name)
-  );
-
-  function handleIgnoreAttributes(ignored: string[]) {
-    if (!productTypeAttributes) return;
-
+  // --- Sync ignored attributes from settings ---
+  $effect(() => {
+    const ignored = getIgnoredAttributes(ctx.projectKey);
     productTypeAttributes.getAllAttributes().forEach(a =>
       productTypeAttributes.setIgnoreAttribute(a.definition.name, false)
     );
-    ignored.forEach(a => productTypeAttributes.setIgnoreAttribute(a, true));
-
-    const cookieConfig = getCookieConfig() || {};
-    const config = {
-      ...cookieConfig,
-      projectKey: ctx.projectKey,
-      token: ctx.token,
-      apiEndpoint: ctx.apiEndpoint,
-      ignoredAttributes: { ...(cookieConfig.ignoredAttributes || {}), [ctx.projectKey]: ignored }
-    };
-    saveCookieConfig(config);
-    console.log(`Setting ignored attributes to ${ignored}`);
-
-    // Force reactivity by reassigning
+    ignored.forEach(a => {
+      if (productTypeAttributes.attributeMap[a]) {
+        productTypeAttributes.setIgnoreAttribute(a, true);
+      }
+    });
+    // Force reactivity
     productTypeAttributes = productTypeAttributes;
-  }
+  });
 
   let attributeOptions = $derived(
     productTypeAttributes.getAllAttributes().map(a => a.definition.name)
@@ -192,8 +188,21 @@
     </div>
   {/if}
 
-  <!-- Title -->
-  <h1 class="mb-6 text-3xl font-bold text-gray-900">{ctx.projectKey} storefront</h1>
+  <!-- Title bar with settings -->
+  <div class="mb-6 flex items-center justify-between">
+    <h1 class="text-3xl font-bold text-gray-900">{ctx.projectKey} storefront</h1>
+    <button
+      onclick={() => (showSettings = true)}
+      class="rounded-full p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+      aria-label="Settings"
+      title="Settings"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 010 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 010-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28z" />
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+      </svg>
+    </button>
+  </div>
 
   <!-- Top bar: search + language + mode -->
   <div class="mb-6 grid grid-cols-1 gap-4 md:grid-cols-12">
@@ -224,19 +233,15 @@
   </div>
 
   <!-- Categories -->
-  {#if categoryTree}
+  {#if categoryTree && settings.showCategories}
     <CategoryBar {selectedCategoryId} setSelectedCategoryId={(id) => (selectedCategoryId = id)} {categoryTree} lang={currentLang} />
   {/if}
 
-  <!-- Facets (only shown when facetable attributes exist) -->
-  {#if productTypeAttributes.getAllAttributes().length > 0}
+  <!-- Facets (only shown when facetable attributes exist and enabled) -->
+  {#if settings.showFacets && productTypeAttributes.getAllAttributes().length > 0}
     <div class="mt-6">
       <div class="mb-2 flex items-center gap-3">
         <h2 class="text-xl font-semibold text-gray-900">Facets</h2>
-        <button onclick={() => (showFacetConfig = true)}
-          class="rounded border border-gray-300 px-3 py-1 text-sm text-gray-700 hover:bg-gray-100">
-          Config
-        </button>
       </div>
 
       {#if facetsQuery.isError}
@@ -257,43 +262,13 @@
     </div>
   {/if}
 
-  <!-- Facet config modal -->
-  {#if showFacetConfig && productTypeAttributes.getAllAttributes().length > 0}
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <!-- svelte-ignore a11y_interactive_supports_focus -->
-    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      onkeydown={(e) => { if (e.key === 'Escape') showFacetConfig = false; }}
-      onclick={(e) => { if (e.target === e.currentTarget) showFacetConfig = false; }}
-      role="dialog">
-      <div class="w-full max-w-lg rounded-lg bg-white p-6 shadow-xl">
-        <div class="mb-4 flex items-center justify-between">
-          <h3 class="text-lg font-semibold">Ignore attributes</h3>
-          <button onclick={() => (showFacetConfig = false)} class="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
-        </div>
-        <div>
-          <!-- svelte-ignore a11y_label_has_associated_control -->
-          <label class="mb-2 block text-sm font-medium text-gray-700">Attributes to ignore</label>
-          <div class="flex max-h-60 flex-col gap-1 overflow-y-auto rounded border border-gray-200 p-2">
-            {#each attributeOptions as attr}
-              <label class="flex items-center gap-2 rounded px-2 py-1 text-sm hover:bg-gray-50">
-                <input type="checkbox"
-                  checked={ignoredAttributeNames.includes(attr)}
-                  onchange={(e) => {
-                    const checked = (e.target as HTMLInputElement).checked;
-                    const updated = checked
-                      ? [...ignoredAttributeNames, attr]
-                      : ignoredAttributeNames.filter(a => a !== attr);
-                    handleIgnoreAttributes(updated);
-                  }}
-                  class="rounded" />
-                {attr}
-              </label>
-            {/each}
-          </div>
-        </div>
-      </div>
-    </div>
-  {/if}
+  <!-- Settings panel -->
+  <SettingsPanel
+    open={showSettings}
+    onClose={() => (showSettings = false)}
+    projectKey={ctx.projectKey}
+    {attributeOptions}
+  />
 
   <!-- Results -->
   <div class="mt-6">
